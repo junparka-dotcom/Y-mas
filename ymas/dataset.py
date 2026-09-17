@@ -55,18 +55,39 @@ def make_masks(S):
     )
 
 
+def _rot_matrix(rx, ry, rz):
+    """X, Y, Z 축 회전을 합성한 3x3 행렬 (float32).
+
+    Y축 회전은 v17 과 동일한 정의를 유지하고, X/Z 축 회전을 추가로 합성한다.
+    (rx=rz=0 이고 ry 만 있으면 v17 의 Y축 회전과 수학적으로 동일)
+    """
+    cy, sy = np.cos(ry), np.sin(ry)
+    Ry = np.array([[cy, 0, -sy], [0, 1, 0], [sy, 0, cy]], dtype=np.float32)
+    if rx == 0.0 and rz == 0.0:
+        return Ry
+    cx, sx = np.cos(rx), np.sin(rx)
+    Rx = np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]], dtype=np.float32)
+    cz, sz = np.cos(rz), np.sin(rz)
+    Rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]], dtype=np.float32)
+    return (Rz @ Rx @ Ry).astype(np.float32)
+
+
 class YmasDataset(Dataset):
     """스켈레톤 3-스트림 + physics 특징 데이터셋.
 
     train=True 일 때만 augmentation 적용:
-      - Y축 랜덤 회전 (+-0.26 rad)
+      - 랜덤 회전 (Y축 +-aug_rot_y, 옵션으로 X/Z축 +-aug_rot_xz)
       - 가우시안 노이즈 (std 0.01)
       - 프레임 드롭 (30% 확률로 10% 프레임을 직전 프레임으로 치환)
       - 스케일 지터 (0.9~1.1)
       - 시간축 크롭 (50% 확률)
+      - (옵션) 관절 드롭아웃: joint_dropout_p 확률로 일부 관절을 직전 프레임 값으로 대체
+
+    [!] aug 인자를 주지 않으면 v17 베이스라인과 완전히 동일하게 동작한다
+        (aug_rot_y=0.26, 나머지 0). 실험 시에만 aug 를 넘긴다.
     """
 
-    def __init__(self, X, P, Y, D, train, pmean=None, pstd=None):
+    def __init__(self, X, P, Y, D, train, pmean=None, pstd=None, aug=None):
         self.X = X
         self.P = P
         self.Y = Y
@@ -75,6 +96,13 @@ class YmasDataset(Dataset):
         self.pmean = P.mean(0) if pmean is None else pmean
         self.pstd = P.std(0) + 1e-6 if pstd is None else pstd
         self.T = X.shape[1]
+        self.V = X.shape[2]
+        # augmentation 설정 (기본값 = v17 베이스라인)
+        aug = aug or {}
+        self.aug_rot_y = float(aug.get('aug_rot_y', 0.26))
+        self.aug_rot_xz = float(aug.get('aug_rot_xz', 0.0))
+        self.jd_p = float(aug.get('joint_dropout_p', 0.0))
+        self.jd_frac = float(aug.get('joint_dropout_frac', 0.0))
 
     def __len__(self):
         return len(self.Y)
@@ -82,9 +110,15 @@ class YmasDataset(Dataset):
     def __getitem__(self, i):
         x = self.X[i].copy()
         if self.train:
-            th = np.random.uniform(-0.26, 0.26)
-            c, s = np.cos(th), np.sin(th)
-            R = np.array([[c, 0, -s], [0, 1, 0], [s, 0, c]], dtype=np.float32)
+            ry = np.random.uniform(-self.aug_rot_y, self.aug_rot_y)
+            if self.aug_rot_xz > 0.0:
+                rx = np.random.uniform(-self.aug_rot_xz, self.aug_rot_xz)
+                rz = np.random.uniform(-self.aug_rot_xz, self.aug_rot_xz)
+                R = _rot_matrix(rx, ry, rz)
+            else:
+                # v17 과 동일 경로 (Y축 단독)
+                c, s = np.cos(ry), np.sin(ry)
+                R = np.array([[c, 0, -s], [0, 1, 0], [s, 0, c]], dtype=np.float32)
             x = x @ R.T
             x += np.random.normal(0, 0.01, x.shape).astype(np.float32)
             if np.random.rand() < 0.3:
@@ -95,6 +129,17 @@ class YmasDataset(Dataset):
             x *= np.random.uniform(0.9, 1.1)
             if np.random.rand() < 0.5:
                 x = temporal_crop(x, self.T)
+            # 관절 드롭아웃: 특정 관절 패턴 암기 방지 (v18 실험)
+            if self.jd_p > 0.0 and self.jd_frac > 0.0 and np.random.rand() < self.jd_p:
+                n_drop = max(1, int(round(self.V * self.jd_frac)))
+                drop = np.random.choice(self.V, size=n_drop, replace=False)
+                # 시간축으로 직전 프레임 값으로 대체 (첫 프레임은 다음 프레임)
+                for j in drop:
+                    for t in range(len(x)):
+                        if t > 0:
+                            x[t, j] = x[t - 1, j]
+                        elif len(x) > 1:
+                            x[t, j] = x[t + 1, j]
         p = (self.P[i] - self.pmean) / self.pstd
         return (torch.from_numpy(to_streams(x)).float(),
                 torch.from_numpy(p).float(),
@@ -117,8 +162,12 @@ def build_datasets(data, cfg: Config):
     X, P, Y, D, S = data['X'], data['P'], data['Y'], data['D'], data['S']
     train_mask, val_mask, holdout_mask = make_masks(S)
 
+    aug = dict(aug_rot_y=cfg.aug_rot_y, aug_rot_xz=cfg.aug_rot_xz,
+               joint_dropout_p=cfg.joint_dropout_p,
+               joint_dropout_frac=cfg.joint_dropout_frac)
+
     tr = YmasDataset(X[train_mask], P[train_mask], Y[train_mask], D[train_mask],
-                     train=True)
+                     train=True, aug=aug)
     va = YmasDataset(X[val_mask], P[val_mask], Y[val_mask], D[val_mask],
                      train=False, pmean=tr.pmean, pstd=tr.pstd)
     ho = YmasDataset(X[holdout_mask], P[holdout_mask], Y[holdout_mask], D[holdout_mask],

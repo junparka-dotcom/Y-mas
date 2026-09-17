@@ -1,0 +1,39 @@
+# v18 실험 — augmentation 강화로 일반화 개선
+#
+# 근거: Train 진단에서 non-Fall 16,905개 중 P(Fall)>=0.75 는 단 2건.
+#       모델은 Train 을 거의 완벽히 맞추지만 Holdout P39/P40 에서 확신에 찬
+#       오답(>=0.90) 18건 발생 → 하드 네거티브 문제가 아니라 일반화 실패.
+#       학습 시 자세 방향·관절 조합을 더 다양하게 노출해 피험자 자세 암기를
+#       막는다. v17 대비 아래 4개 값만 변경 (나머지는 전부 동일).
+#
+# 성공 판정: precision>=0.95 유지 & Holdout 오경보 < 79 & recall(전체) >= 0.9851
+
+data:
+  T: 64
+  V: 25
+  fps: 30.0
+  n_phys: 10
+
+train:
+  batch_size: 64
+  epochs: 40
+  lr: 1.0e-3
+  weight_decay: 5.0e-4
+  warmup_epochs: 3
+  label_smooth: 0.15
+  focal_gamma: 1.5
+  dropout: 0.45
+  aux_weight: 0.15
+  mixup_alpha: 0.4
+  ema_decay: 0.9999
+  swa_start_r: 0.75
+  seed: 42
+
+  # ---- v18 변경점 (여기만 v17 과 다름) ----
+  aug_rot_y: 0.35          # Y축 회전 0.26 -> 0.35 (약 ±20°)
+  aug_rot_xz: 0.12         # X/Z축 회전 활성 (약 ±7°) — 옆으로 눕/구름 커버
+  joint_dropout_p: 0.3     # 30% 샘플에 관절 드롭아웃 적용
+  joint_dropout_frac: 0.1  # 25관절 중 ~2~3개를 직전 프레임으로 대체
+
+eval:
+  precision_gate: 0.95
