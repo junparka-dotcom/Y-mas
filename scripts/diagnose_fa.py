@@ -108,6 +108,48 @@ def dissect(tag, data, mask, pfall, th):
               f"({nfa/max(nnf,1)*100:.1f}%)")
 
 
+def analyze_train_candidates(data, mask, pfall, th):
+    """Train 의 재가중 대상 분석.
+
+    증강 없는 Train 에서 Normal/Risk 샘플이 받는 P(Fall) 분포를 본다.
+    하드 네거티브 재가중이 겨냥할 '낙상 닮은 정상/위험 자세' 가 Train 에
+    실제로 존재하는지, 몇 건인지 확인한다 (없으면 재가중은 헛방).
+    """
+    Y = data['Y'][mask]
+    D = data['D'][mask]
+    nonfall = Y != 2
+    pf = pfall[nonfall]
+    Dn = D[nonfall]
+    Yn = Y[nonfall]
+
+    print("\n" + "=" * 70)
+    print("[Train] 하드 네거티브 후보 분석 (증강 없음, non-Fall 샘플의 P(Fall))")
+    print("=" * 70)
+    print(f"  non-Fall 총 {len(pf)}개")
+    print(f"  P(Fall) 분위: p50 {np.percentile(pf,50):.3f} / "
+          f"p90 {np.percentile(pf,90):.3f} / p99 {np.percentile(pf,99):.3f} / "
+          f"max {pf.max():.3f}")
+
+    print("\n  [임계 구간별 non-Fall 샘플 수 = 재가중 후보]")
+    for lo, hi, name in [(th, 0.80, f'경계 [{th:.2f},0.80)'),
+                         (0.80, 0.90, '위험 [0.80,0.90)'),
+                         (0.90, 1.01, '확신오답 [0.90,1.0]')]:
+        m = (pf >= lo) & (pf < hi)
+        n_ntu = int((m & (Dn == 0)).sum())
+        n_etri = int((m & (Dn == 1)).sum())
+        n_risk = int((m & (Yn == 1)).sum())
+        print(f"    {name:<22} 총 {int(m.sum()):>5}  "
+              f"(NTU {n_ntu} / ETRI {n_etri} / 그중 Risk {n_risk})")
+
+    hard = int((pf >= th).sum())
+    print(f"\n  th={th} 이상 non-Fall (Train 에서 '오답 경향') : {hard}건 "
+          f"({hard/len(pf)*100:.2f}%)")
+    if hard < 20:
+        print("  [!] 후보가 적음 -- 단순 재가중 효과 제한적, 증강 강화 병행 권장")
+    else:
+        print("  -> 재가중 대상 충분히 존재. OHEM/재가중으로 밀어낼 여지 있음")
+
+
 def main():
     args = parse_args()
     cfg = Config()
@@ -127,6 +169,11 @@ def main():
         mask = masks[mkey]
         pfall = probs_for_mask(model, data, mask, cfg, device, pmean, pstd)
         dissect(tag, data, mask, pfall, args.th)
+
+    # Train 재가중 후보 분석 (증강 없는 Train)
+    train_mask = masks['train']
+    train_pfall = probs_for_mask(model, data, train_mask, cfg, device, pmean, pstd)
+    analyze_train_candidates(data, train_mask, train_pfall, args.th)
 
     print("\n완료.")
 
