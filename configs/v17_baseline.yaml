@@ -1,0 +1,27 @@
+# v17 재현 베이스라인 설정
+# 이 값들은 v13 그리드서치로 확정된 것으로, 재현성을 위해 바꾸지 않는다.
+# 개선 실험은 이 파일을 복사해 새 config 를 만들어 진행할 것.
+
+data:
+  T: 64
+  V: 25
+  fps: 30.0
+  n_phys: 10
+
+train:
+  batch_size: 64
+  epochs: 40
+  lr: 1.0e-3
+  weight_decay: 5.0e-4
+  warmup_epochs: 3
+  label_smooth: 0.15      # v13 확정
+  focal_gamma: 1.5        # v13 확정
+  dropout: 0.45           # v13 확정
+  aux_weight: 0.15        # v13 확정
+  mixup_alpha: 0.4
+  ema_decay: 0.9999
+  swa_start_r: 0.75
+  seed: 42
+
+eval:
+  precision_gate: 0.95    # 교훈 1: 이 게이트를 먼저 걸고 recall 최대화
