@@ -14,6 +14,10 @@
 
 import argparse
 import os
+import sys
+
+# 래포 루트를 모듈 검색 경로에 추가 (scripts/ 에서 직접 실행해도 ymas 임포트 가능)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import torch
