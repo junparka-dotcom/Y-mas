@@ -85,8 +85,43 @@ class Config:
     swa_start_r: float = 0.75
     seed: int = 42
 
+    # ---- augmentation 강화 (v18, 일반화 개선 실험) ----
+    # 아래 값이 기본값이면 v17 베이스라인과 완전히 동일하게 동작한다.
+    # 실험 시에만 config 로 켠다 (재현성 유지).
+    aug_rot_y: float = 0.26         # Y축 회전 범위 (rad). v17 기본 0.26
+    aug_rot_xz: float = 0.0         # X/Z축 회전 범위 (rad). >0 이면 다축 회전 활성
+    joint_dropout_p: float = 0.0    # 관절 드롭아웃 확률 (샘플당 적용 확률)
+    joint_dropout_frac: float = 0.0  # 드롭할 관절 비율 (0.1 = 25개 중 ~2~3개)
+
     def to_dict(self):
         return asdict(self)
+
+
+# YAML 섹션 -> Config 필드 매핑용: 어느 섹션이든 평탄화해서 필드명이 맞으면 반영
+def load_config(yaml_path=None, **overrides):
+    """YAML(선택) + 키워드 오버라이드로 Config 를 만든다.
+
+    YAML 은 data/train/eval 등 섹션으로 나뉘어 있어도 되고 평탄해도 된다.
+    Config 필드명과 일치하는 키만 반영하며, 나머지(예: eval.precision_gate)는
+    무시한다 (호출부에서 별도로 읽는다). 아무 인자도 없으면 v17 기본값.
+    """
+    values = {}
+    if yaml_path:
+        import yaml
+        with open(yaml_path) as f:
+            raw = yaml.safe_load(f) or {}
+
+        def flatten(d):
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    flatten(v)
+                else:
+                    values[k] = v
+        flatten(raw)
+    values.update(overrides)
+    fields = Config.__dataclass_fields__
+    kept = {k: v for k, v in values.items() if k in fields}
+    return Config(**kept)
 
 
 def subject_split_ntu(subj):

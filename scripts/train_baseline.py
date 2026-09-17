@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import numpy as np
 import torch
 
-from ymas.config import Config
+from ymas.config import Config, load_config
 from ymas.dataset import load_caches, build_datasets, build_loaders, summarize_split
 from ymas.model import YmasNet, count_parameters
 from ymas.train import train, set_seed
@@ -37,6 +37,7 @@ def parse_args():
     ap.add_argument('--ntu', required=True, help='ntu_ymas_v15_T64.npz 경로')
     ap.add_argument('--etri', required=True, help='etri_ymas_v15_T64.npz 경로')
     ap.add_argument('--out', required=True, help='체크포인트 저장 경로 (.pt)')
+    ap.add_argument('--config', default=None, help='실험 config YAML (없으면 v17 기본값)')
     ap.add_argument('--epochs', type=int, default=None, help='epochs 오버라이드 (스모크용)')
     ap.add_argument('--num-workers', type=int, default=2)
     return ap.parse_args()
@@ -44,10 +45,13 @@ def parse_args():
 
 def main():
     args = parse_args()
-    cfg = Config()
+    cfg = load_config(args.config)
     if args.epochs is not None:
         cfg.epochs = args.epochs
     set_seed(cfg.seed)
+    print("config:", args.config or "(v17 기본값)")
+    print(f"  aug_rot_y={cfg.aug_rot_y} aug_rot_xz={cfg.aug_rot_xz} "
+          f"joint_dropout_p={cfg.joint_dropout_p} joint_dropout_frac={cfg.joint_dropout_frac}")
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print("device:", device)
