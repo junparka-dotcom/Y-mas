@@ -1,0 +1,10 @@
+# Y-mas Tier 2 학습 의존성 (Colab T4 / 로컬 GPU)
+# Colab 은 torch 가 이미 설치돼 있으므로 보통 아래만 추가 설치하면 된다.
+torch>=2.1
+numpy>=1.24
+pandas>=1.5          # ETRI CSV 파싱(원본 재빌드 시에만 필요)
+tqdm>=4.65
+matplotlib>=3.6      # 학습 곡선 시각화
+onnx>=1.15           # ONNX 내보내기
+onnxscript>=0.1      # torch.onnx dynamo exporter
+pyyaml>=6.0

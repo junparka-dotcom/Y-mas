@@ -1,0 +1,28 @@
+# 데이터셋 캐시 / 원본 (Drive 에 보관, 래포에 커밋하지 않음)
+*.npz
+*.zip
+*.skeleton
+
+# 모델 산출물 (용량 큼 -- Drive 나 릴리스로 관리)
+*.pt
+*.pth
+*.onnx
+*.onnx.data
+*.engine
+
+# 스크래치 / 임시
+_scratch/
+/content/
+logs/
+*.log
+
+# 파이썬
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS
+.DS_Store
