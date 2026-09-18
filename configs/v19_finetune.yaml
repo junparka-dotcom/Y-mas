@@ -1,0 +1,42 @@
+# v19 실험 — v18 미세조정 (관절 드롭아웃 완화)
+#
+# 근거: v18(joint_dropout_frac=0.1, 25관절 중 ~2~3개 마스킹)은 일반화에
+#       기여했지만 동적 낙상의 미세한 관절 신호도 일부 흐렸을 수 있다.
+#       드롭아웃을 절반(frac=0.05, ~1개)으로 낮춰 회전 다양화의 일반화
+#       효과는 유지하면서 낙상 신호 손상을 줄인다.
+#       v18 대비 joint_dropout_frac 하나만 변경 (한 번에 하나씩 — 교훈 2).
+#
+# 성공 판정 (v18 th=0.78, 오경보 67, NTU recall 0.9762 대비):
+#   precision>=0.95 유지 & NTU 낙상 recall >= 0.9762 & 오경보 <= 67
+#   하나라도 나빠지면 v18 유지, v19 폐기.
+
+data:
+  T: 64
+  V: 25
+  fps: 30.0
+  n_phys: 10
+
+train:
+  batch_size: 64
+  epochs: 40
+  lr: 1.0e-3
+  weight_decay: 5.0e-4
+  warmup_epochs: 3
+  label_smooth: 0.15
+  focal_gamma: 1.5
+  dropout: 0.45
+  aux_weight: 0.15
+  mixup_alpha: 0.4
+  ema_decay: 0.9999
+  swa_start_r: 0.75
+  seed: 42
+
+  # ---- v18 과 동일 ----
+  aug_rot_y: 0.35
+  aug_rot_xz: 0.12
+  joint_dropout_p: 0.3
+  # ---- v19 변경점 (여기만 v18 과 다름) ----
+  joint_dropout_frac: 0.05   # 0.1 -> 0.05 (25관절 중 ~1개만 드롭)
+
+eval:
+  precision_gate: 0.95
