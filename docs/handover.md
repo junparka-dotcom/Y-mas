@@ -109,8 +109,17 @@ Tier 1 이 UDP 트리거를 보내면 Tier 2 가 `threading.Event` 로 깨어난
 
 ## 로드맵
 
-- **Phase 0 (현재)** — v17 노트북을 래포 모듈로 재구성 + 재현 베이스라인 확립.
-- **Phase 1** — 캐시 기반 정직한 개선 실험 (동적 Fall 오버샘플, 하드 네거티브
-  마이닝, precision 게이트 유지하며 recall↑ / 오경보↓). 동일 캐시·분할·불변식,
-  Val 로만 튜닝, Holdout 은 마지막 1회.
+- **Phase 0 (완료)** — v17 노트북을 래포 모듈로 재구성 + 재현 베이스라인 확립.
+  Holdout NTU recall 0.9762 / ETRI 0.9875 / 오경보 79 재현 성공 (th=0.75).
+- **Phase 1 (v18 완료)** — 캐시 기반 정직한 개선 실험.
+  - 진단 결과 하드 네거티브 재가중은 폐기(Train non-Fall 16,905개 중
+    P(Fall)>=0.75 단 2건 → 재가중 대상 없음, 순수 일반화 실패로 판명).
+  - **augmentation 강화(v18)** 채택: 다축 회전(rot_y 0.35 + rot_xz 0.12)
+    + 관절 드롭아웃(p=0.3, frac=0.1). 확신 오답(P>=0.90) 18→7건 감소.
+  - **배포 임계값 th=0.78 확정**: NTU 동적 낙상 recall 0.9762 완전 유지하며
+    Holdout 오경보 79→67 (-15%). th>=0.79 부터 NTU recall 절벽 붕괴.
+  - 관련: configs/v18_aug.yaml, scripts/analyze_threshold.py, scripts/diagnose_fa.py
+- **Phase 1 이후 후보** — augmentation 미세조정으로 NTU recall 추가 여유 확보,
+  또는 다른 정규화(stochastic depth 등). 단 개선은 반드시 베이스라인 대비 증명.
 - **Phase 2 (하드웨어 준비 후)** — Femto W 실데이터 수집 → 파인튜닝으로 도메인 갭 해소.
+  (현재 카메라 수집 불가 상태라 보류.)
