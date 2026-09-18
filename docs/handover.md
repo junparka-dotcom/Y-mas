@@ -119,6 +119,12 @@ Tier 1 이 UDP 트리거를 보내면 Tier 2 가 `threading.Event` 로 깨어난
   - **배포 임계값 th=0.78 확정**: NTU 동적 낙상 recall 0.9762 완전 유지하며
     Holdout 오경보 79→67 (-15%). th>=0.79 부터 NTU recall 절벽 붕괴.
   - 관련: configs/v18_aug.yaml, scripts/analyze_threshold.py, scripts/diagnose_fa.py
+  - **[폐기] v19 (관절 드롭아웃 0.1→0.05):** 드롭아웃을 약하게 하면 낙상
+    신호가 덜 흐려져 NTU recall 이 오를 것이라 가정했으나 **반증됨**. 전 th
+    구간에서 NTU recall 0.9762→0.9643 하락(낙상 1개 더 놓침), 오경보도 동일 th
+    에서 소폭 증가. => **강한 드롭아웃(frac=0.1)이 일반화(미답 피험자 P39/P40
+    낙상 판정)에 실제로 기여**하고 있었다는 뜻. "드롭아웃 줄이기"는 다시
+    시도하지 말 것. (configs/v19_finetune.yaml, 미병합)
 - **Phase 1 이후 후보** — augmentation 미세조정으로 NTU recall 추가 여유 확보,
   또는 다른 정규화(stochastic depth 등). 단 개선은 반드시 베이스라인 대비 증명.
 - **Phase 2 (하드웨어 준비 후)** — Femto W 실데이터 수집 → 파인튜닝으로 도메인 갭 해소.
