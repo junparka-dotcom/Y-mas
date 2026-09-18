@@ -45,12 +45,19 @@ ymas/
   evaluate.py    진단 + 임계값 스윕 + precision 우선 선택 + Holdout
   export.py      ONNX 내보내기
 scripts/
-  train_baseline.py   v17 재현 학습 진입점
+  train_baseline.py   학습 진입점 (--config 로 실험 config 지정)
+  diagnose_fa.py      오경보 해부 진단 (도메인/피험자/P(Fall) 분포)
   export_onnx.py      체크포인트 → ONNX
 configs/
-  v17_baseline.yaml   v13 그리드서치 확정 하이퍼파라미터
+  v17_baseline.yaml   v13 그리드서치 확정 하이퍼파라미터 (재현 베이스라인)
+  v18_aug.yaml        augmentation 강화 실험 (일반화 개선)
+edge/                 Jetson Tier 2 실시간 추론 (ymas_realtime_ir.py, C++ 브리지, 캘리브레이션)
+integration/          Tier 1 ↔ Tier 2 통합 (ymas_integrated.py, tier1_receiver)
+firmware/             ESP32 Tier 1 펌웨어 (.ino)
+hardware/             레일 플랫폼 CAD (OpenSCAD 소스 + STL + 프린트 가이드)
 docs/
   handover.md         프로젝트 인수인계 (맥락 / 확정사항 / 폐기선택지 / 교훈)
+  reference/          부품목록·종합정리 PDF (참고자료)
 notebooks/
   colab_train.ipynb   Colab 실행 진입점 (git clone → import ymas)
 ```
