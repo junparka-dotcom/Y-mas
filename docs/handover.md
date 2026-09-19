@@ -125,7 +125,17 @@ Tier 1 이 UDP 트리거를 보내면 Tier 2 가 `threading.Event` 로 깨어난
       좁음. v18 대비 개선 없음. **드롭아웃 더 키우지 말 것.**
     - 결론: 양쪽으로 벗어나면 나빠짐 → joint_dropout_frac=0.10 고정. 이 축은 수렴.
     - (configs/v19_finetune.yaml, configs/v20_strong_dropout.yaml, 둘 다 미병합)
-- **Phase 1 이후 후보** — 관절 드롭아웃 축은 수렴. 남은 정규화 축(model dropout,
-  stochastic depth 등)이나 실데이터(Phase 2) 만이 추가 여지. 개선은 반드시 증명.
+- **Phase 1 최종 (v21 채택):** model dropout 0.45→0.50 (특징 레벨 정규화)이
+  일반화를 더 밀어 **미답 피험자(P39/P40)의 동적 낙상까지 완벽 감지**.
+  - **배포 th=0.77 확정.** Holdout NTU 동적 낙상 recall **1.000**(84/84),
+    전체 오경보 70. th 0.70~0.77 구간에서 NTU recall 1.000 유지, 0.78부터 하락.
+  - SWA 가 EMA best 를 이겨 채택됨 (정규화 강화로 SWA 가 더 안정적 해에 수렴).
+  - v17→v21 개선: NTU 낙상 recall 0.9762→**1.000**, 전체 오경보 79→70.
+  - 판정 근거: 낙상 감지 시스템에서 놓친 낙상(FN)이 오경보(FP)보다 치명적 →
+    낙상 2개 추가 감지 vs 오경보 3건 증가는 임상적으로 남는 거래.
+  - 관련: configs/v21_model_dropout.yaml. 체크포인트 ymas_v21_model_dropout.pt
+- **Phase 1 이후 후보** — 관절 드롭아웃·model dropout 축 모두 탐색 완료.
+  캐시 고정·데이터 유일(NTU 947 동적 낙상) 상황에서 모델 쪽 여지는 거의 소진.
+  진짜 남은 병목은 실데이터(Phase 2, 카메라 필요)와 배포 정비(AGX Orin).
 - **Phase 2 (하드웨어 준비 후)** — Femto W 실데이터 수집 → 파인튜닝으로 도메인 갭 해소.
   (현재 카메라 수집 불가 상태라 보류.)
