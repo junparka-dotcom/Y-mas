@@ -52,10 +52,12 @@ PSTD = np.array([7.803500175476074, 5.543000221252441, 0.5598000288009644,
                  0.15379999577999115], dtype=np.float32)
 
 # 배포 임계값. 현재 값 0.75 는 v17 체크포인트 기준.
-# [!] v18(ymas_v18_aug) 체크포인트를 배포할 때는 0.78 로 올릴 것.
-#     근거: configs/v18_aug.yaml (deploy_th=0.78). v18 은 오경보를 경계
-#     구간으로 밀어내 th 0.78 에서 NTU 낙상 recall 유지하며 오경보 -15%.
-#     PMEAN/PSTD 도 해당 체크포인트 값으로 함께 맞춰야 한다 (불변식).
+# [!] 배포 모델 = v21 (ymas_v21_model_dropout). 배포 시 TH_FALL = 0.77 로 설정.
+#     근거: configs/v21_model_dropout.yaml (deploy_th=0.77). v21 은
+#     Holdout NTU 동적 낙상 recall 1.000(84/84) 을 th 0.70~0.77 에서 유지하며
+#     0.77 에서 오경보 최소. 아래 PMEAN/PSTD 는 v17 값이므로, v21 체크포인트를
+#     배포할 때 해당 체크포인트의 pmean/pstd 로 반드시 교체할 것 (불변식 교훈 5).
+#     (참고: v18 은 deploy_th=0.78 이었으나 v21 로 대체됨.)
 TH_FALL = 0.75
 CLASS_NAMES = ['Normal', 'Risk', 'Fall']
 
