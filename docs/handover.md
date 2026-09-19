@@ -119,7 +119,13 @@ Tier 1 이 UDP 트리거를 보내면 Tier 2 가 `threading.Event` 로 깨어난
   - **배포 임계값 th=0.78 확정**: NTU 동적 낙상 recall 0.9762 완전 유지하며
     Holdout 오경보 79→67 (-15%). th>=0.79 부터 NTU recall 절벽 붕괴.
   - 관련: configs/v18_aug.yaml, scripts/analyze_threshold.py, scripts/diagnose_fa.py
-- **Phase 1 이후 후보** — augmentation 미세조정으로 NTU recall 추가 여유 확보,
-  또는 다른 정규화(stochastic depth 등). 단 개선은 반드시 베이스라인 대비 증명.
+  - **[폐기] 관절 드롭아웃 강도 튜닝 — v18(frac=0.10)이 스위트 스팟으로 확정:**
+    - v19 (frac 0.05, 완화): NTU recall 0.9762→0.9643 하락. **드롭아웃 줄이지 말 것.**
+    - v20 (frac 0.15, 강화): 최적 오경보 68(v18은 67), NTU recall 유지 th 범위 더
+      좁음. v18 대비 개선 없음. **드롭아웃 더 키우지 말 것.**
+    - 결론: 양쪽으로 벗어나면 나빠짐 → joint_dropout_frac=0.10 고정. 이 축은 수렴.
+    - (configs/v19_finetune.yaml, configs/v20_strong_dropout.yaml, 둘 다 미병합)
+- **Phase 1 이후 후보** — 관절 드롭아웃 축은 수렴. 남은 정규화 축(model dropout,
+  stochastic depth 등)이나 실데이터(Phase 2) 만이 추가 여지. 개선은 반드시 증명.
 - **Phase 2 (하드웨어 준비 후)** — Femto W 실데이터 수집 → 파인튜닝으로 도메인 갭 해소.
   (현재 카메라 수집 불가 상태라 보류.)
