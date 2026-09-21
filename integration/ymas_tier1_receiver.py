@@ -198,7 +198,9 @@ def vision_worker(wake_event, stop_event, controller):
     실제 배포 시 이 함수 안에서 아래를 수행:
       1. Orbbec Femto W 스트림 시작
       2. 25관절 스켈레톤 취득
-      3. YmasRuntime(th_fall=0.7).push(frame) 루프
+      3. YmasRuntime(th_fall=0.77).push(frame) 루프
+         (배포 임계값 0.77 = v21 확정값. configs/v21_model_dropout.yaml 참조.
+          모델/체크포인트를 바꾸면 이 값과 pmean/pstd 도 함께 맞출 것 -- 교훈 5)
       4. '낙상 확정' 시 간호사 앱으로 MQTT/WebSocket 송출
     """
     while not stop_event.is_set():
