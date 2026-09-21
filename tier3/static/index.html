@@ -39,6 +39,14 @@
   .sev.FALL    { background:#3a1616; color:var(--fall); }
   @keyframes pulse { 0%,100%{ box-shadow:0 0 0 0 rgba(231,76,60,.6);} 50%{ box-shadow:0 0 0 8px rgba(231,76,60,0);} }
   .ack-badge { font-size:11px; color:var(--normal); margin-top:6px; }
+  .bed.OFFLINE { border-color:#6b7280; opacity:.75; }
+  .sev.OFFLINE { background:#2a2f3a; color:#9aa5b5; }
+  .badge { display:inline-block; margin-top:8px; margin-right:6px; padding:3px 10px;
+           border-radius:8px; font-size:12px; font-weight:700; }
+  .badge.off     { background:#33383f; color:#c8ccd2; }
+  .badge.posture { background:#2a2f4a; color:#8ab4ff; }
+  .badge.weight  { background:#3a3410; color:var(--caution); }
+  #ov-queue { margin-top:16px; font-size:18px; color:#ffd; font-weight:700; }
   /* 전체 화면 낙상 경보 오버레이 */
   #overlay { position:fixed; inset:0; background:rgba(180,20,20,.94);
              display:none; flex-direction:column; align-items:center;
@@ -52,7 +60,10 @@
   table { width:100%; border-collapse:collapse; font-size:13px; }
   th,td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); }
   th { color:var(--dim); font-weight:600; }
-  .row-FALL td:first-child { color:var(--fall); font-weight:700; }
+  .row-fall td:first-child { color:var(--fall); font-weight:700; }
+  .row-sensor_offline td:first-child { color:#9aa5b5; font-weight:700; }
+  .row-posture_alert td:first-child { color:#8ab4ff; font-weight:700; }
+  .row-weight_anomaly td:first-child { color:var(--caution); font-weight:700; }
   .muted { color:var(--dim); }
 </style>
 </head>
@@ -75,11 +86,16 @@
   <h1>⚠ 낙상 감지</h1>
   <div class="info" id="ov-info"></div>
   <button id="ov-ack">확인 (알림 해제)</button>
+  <div id="ov-queue"></div>
 </div>
 
 <script>
 const SEV_KO = { NORMAL:"정상", CAUTION:"주의", DANGER:"위험", FALL:"낙상" };
+const ETYPE_KO = { fall:"낙상", posture_alert:"체위변경", weight_anomaly:"무게이상",
+                   sensor_offline:"센서오프라인", status:"상태" };
 const beds = {};           // bed_id -> event
+const weightTrend = {};    // bed_id -> [최근 무게값...]
+const alertQueue = [];     // 대기 중인 낙상 경보(다중 낙상 큐)
 let activeAlert = null;    // 현재 오버레이에 뜬 event
 let ws;
 
@@ -102,55 +118,96 @@ function renderBeds(){
   if(!ids.length){ box.innerHTML='<div class="muted">아직 수신된 침대가 없습니다.</div>'; return; }
   for(const id of ids){
     const e=beds[id]; const sev=e.severity||'NORMAL';
-    const div=document.createElement('div'); div.className='bed '+sev;
+    const offline = e.event_type==='sensor_offline';
+    const div=document.createElement('div');
+    div.className='bed '+(offline?'OFFLINE':sev);
     let meta='';
-    if(e.total_kg!=null) meta+=`총중량 ${e.total_kg.toFixed(1)}kg<br>`;
+    if(e.total_kg!=null) meta+=`총중량 ${e.total_kg.toFixed(1)}kg${trendStr(id)}<br>`;
     if(e.cog_x!=null&&e.cog_y!=null) meta+=`COG (${e.cog_x.toFixed(0)}, ${e.cog_y.toFixed(0)})<br>`;
     if(e.edge_ratio!=null) meta+=`이탈도 ${e.edge_ratio.toFixed(3)}<br>`;
     if(e.p_fall!=null) meta+=`P(Fall) ${e.p_fall.toFixed(2)}<br>`;
     if(e.reason) meta+=`사유 ${e.reason}`;
+    // 상태 배지들 (모니터링 이벤트)
+    let badges='';
+    if(offline) badges+=`<div class="badge off">⚠ 센서 오프라인</div>`;
+    if(e.event_type==='posture_alert') badges+=`<div class="badge posture">🔄 체위 변경 필요</div>`;
+    if(e.event_type==='weight_anomaly') badges+=`<div class="badge weight">⚖ 무게 이상 ${e.weight_delta!=null?(e.weight_delta>0?'+':'')+e.weight_delta+'kg':''}</div>`;
     div.innerHTML=`<div class="id">${id}</div>`+
-      `<span class="sev ${sev}">${SEV_KO[sev]||sev}</span>`+
-      `<div class="meta">${meta}</div>`+
-      (e.severity==='FALL'&&e.acknowledged?`<div class="ack-badge">✓ 확인됨</div>`:'');
+      `<span class="sev ${offline?'OFFLINE':sev}">${offline?'오프라인':(SEV_KO[sev]||sev)}</span>`+
+      `<div class="meta">${meta}</div>`+ badges +
+      (e.event_type==='fall'&&e.acknowledged?`<div class="ack-badge">✓ 확인됨</div>`:'');
     box.appendChild(div);
   }
 }
 
+function trendStr(id){
+  const t=weightTrend[id]; if(!t||t.length<2) return '';
+  const d=t[t.length-1]-t[0];
+  const arrow = Math.abs(d)<0.5 ? '→' : (d>0 ? '↑' : '↓');
+  return ` <span class="muted">${arrow}${Math.abs(d)>=0.5?Math.abs(d).toFixed(1)+'kg':''}</span>`;
+}
+
 function addLog(e){
   const tb=document.getElementById('log');
-  const tr=document.createElement('tr'); tr.className='row-'+(e.severity||'');
+  const tr=document.createElement('tr'); tr.className='row-'+(e.event_type||'');
+  const label = ETYPE_KO[e.event_type] || (SEV_KO[e.severity]||e.severity);
+  const detail = e.message || e.reason || '-';
   tr.innerHTML=`<td>${fmtTime(e.ts)}</td><td>${e.bed_id}</td>`+
-    `<td>${SEV_KO[e.severity]||e.severity}</td><td>${e.reason||'-'}</td>`+
+    `<td>${label}</td><td>${detail}</td>`+
     `<td>${e.p_fall!=null?e.p_fall.toFixed(2):'-'}</td>`+
-    `<td>${e.acknowledged?'✓':(e.severity==='FALL'?'대기':'-')}</td>`;
+    `<td>${e.acknowledged?'✓':(e.event_type==='fall'?'대기':'-')}</td>`;
   tb.prepend(tr);
   while(tb.rows.length>50) tb.deleteRow(-1);
 }
 
-function showAlert(e){
-  activeAlert=e;
+// ---- 다중 낙상 큐 (A): 한 번에 하나씩 오버레이, 확인하면 다음 ----
+function enqueueAlert(e){
+  // 이미 큐/활성에 같은 침대의 미확인 낙상이 있으면 갱신만
+  if(activeAlert && activeAlert.bed_id===e.bed_id) return;
+  if(alertQueue.some(x=>x.bed_id===e.bed_id)) return;
+  alertQueue.push(e);
+  if(!activeAlert) showNextAlert();
+  else updateQueueBadge();
+}
+function showNextAlert(){
+  if(!alertQueue.length){ hideOverlay(); return; }
+  activeAlert = alertQueue.shift();
+  const e=activeAlert;
   document.getElementById('ov-info').innerHTML=
     `<b>${e.bed_id}</b> 침대<br>${fmtTime(e.ts)}<br>`+
     (e.reason?`사유: ${e.reason}<br>`:'')+
     (e.p_fall!=null?`P(Fall) ${e.p_fall.toFixed(2)}`:'');
   document.getElementById('overlay').classList.add('show');
+  updateQueueBadge();
   beep();
 }
-function hideAlert(){ document.getElementById('overlay').classList.remove('show'); activeAlert=null; }
+function updateQueueBadge(){
+  const b=document.getElementById('ov-queue');
+  b.textContent = alertQueue.length ? `대기 중인 낙상 경보 ${alertQueue.length}건` : '';
+}
+function hideOverlay(){ document.getElementById('overlay').classList.remove('show'); activeAlert=null; updateQueueBadge(); }
 
 document.getElementById('ov-ack').onclick=()=>{
   if(activeAlert && ws && ws.readyState===1){
     ws.send(JSON.stringify({type:'ack', event_id:activeAlert.event_id}));
   }
-  hideAlert();
+  activeAlert=null;
+  showNextAlert();   // 다음 대기 낙상으로
 };
 
 function handleEvent(e){
   beds[e.bed_id]=e;
+  if(e.total_kg!=null){
+    const t=weightTrend[e.bed_id]||(weightTrend[e.bed_id]=[]);
+    t.push(e.total_kg); if(t.length>20) t.shift();
+  }
   renderBeds();
-  if(e.severity==='FALL'||e.severity==='DANGER') addLog(e);
-  if(e.severity==='FALL' && !e.acknowledged) showAlert(e);
+  const et=e.event_type||'status';
+  // 로그에는 알림성 이벤트만
+  if(['fall','posture_alert','weight_anomaly','sensor_offline'].includes(et) || e.severity==='DANGER')
+    addLog(e);
+  // 낙상만 전체화면 큐 경보 (나머지는 카드 배지로 표시)
+  if(et==='fall' && (e.severity==='FALL') && !e.acknowledged) enqueueAlert(e);
 }
 
 function connect(){
@@ -162,13 +219,19 @@ function connect(){
   ws.onmessage=(m)=>{
     const msg=JSON.parse(m.data);
     if(msg.type==='snapshot'){
-      (msg.beds||[]).forEach(b=>beds[b.bed_id]=b); renderBeds();
+      (msg.beds||[]).forEach(b=>{ beds[b.bed_id]=b;
+        if(b.total_kg!=null){(weightTrend[b.bed_id]||(weightTrend[b.bed_id]=[])).push(b.total_kg);} });
+      renderBeds();
       (msg.history||[]).forEach(addLog);
     } else if(msg.type==='event'){
       handleEvent(msg.event);
     } else if(msg.type==='ack'){
       for(const id in beds){ if(beds[id].event_id===msg.event_id){ beds[id].acknowledged=true; } }
-      if(activeAlert && activeAlert.event_id===msg.event_id) hideAlert();
+      // 다른 대시보드에서 확인한 경우 큐에서도 제거
+      const qi=alertQueue.findIndex(x=>x.event_id===msg.event_id);
+      if(qi>=0) alertQueue.splice(qi,1);
+      if(activeAlert && activeAlert.event_id===msg.event_id){ activeAlert=null; showNextAlert(); }
+      updateQueueBadge();
       renderBeds();
     }
   };

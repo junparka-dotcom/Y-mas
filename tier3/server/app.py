@@ -28,11 +28,27 @@ from fastapi.staticfiles import StaticFiles
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from schema import FallEvent, Severity, is_alert  # noqa: E402
+from schema import FallEvent, Severity, EventType, is_alert  # noqa: E402
 
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(os.path.dirname(HERE), "static")
+
+# ---------------- 모니터링 설정 (환경변수로 조정 가능) ----------------
+# 테스트 시 짧게: 예) YMAS_POSTURE_INTERVAL_S=30 YMAS_OFFLINE_TIMEOUT_S=10
+MONITOR = dict(
+    # 센서 오프라인: 마지막 수신 후 이 시간(s) 넘게 무응답이면 경고
+    offline_timeout_s=float(os.environ.get("YMAS_OFFLINE_TIMEOUT_S", "15")),
+    # 체위 변경(욕창): COG/무게가 이 거리·무게 안에서만 움직이면 '정지'로 간주
+    still_cog_mm=float(os.environ.get("YMAS_STILL_COG_MM", "40")),
+    still_weight_kg=float(os.environ.get("YMAS_STILL_WEIGHT_KG", "3")),
+    # 이 시간(s) 넘게 정지 지속이면 체위 변경 알림 (기본 2시간=7200s)
+    posture_interval_s=float(os.environ.get("YMAS_POSTURE_INTERVAL_S", "7200")),
+    # 무게 이상: 짧은 시간에 이 이상(kg) 급변(낙상 아닌 재실 상태에서)이면 경고
+    weight_anomaly_kg=float(os.environ.get("YMAS_WEIGHT_ANOMALY_KG", "15")),
+    # 백그라운드 점검 주기(s)
+    check_period_s=float(os.environ.get("YMAS_CHECK_PERIOD_S", "2")),
+)
 
 app = FastAPI(title="Y-mas Tier 3 — 간호 스테이션 알림")
 
@@ -47,6 +63,10 @@ class Hub:
         self.history_limit = history_limit
         self._id_gen = itertools.count(1)
         self._lock = asyncio.Lock()
+        # 모니터링 상태 (bed_id -> 추적 정보)
+        self.monitor: Dict[str, dict] = {}
+        # 이미 한 번 알린 상태(중복 알림 방지): bed_id -> set(event_type)
+        self.raised: Dict[str, set] = {}
 
     def next_event_id(self) -> str:
         return f"evt-{int(time.time())}-{next(self._id_gen)}"
@@ -76,7 +96,7 @@ class Hub:
             self.unregister(ws)
 
     async def ingest(self, event: FallEvent) -> dict:
-        """이벤트 수신 처리: ID 부여 → 상태/이력 갱신 → broadcast."""
+        """이벤트 수신 처리: ID 부여 → 상태/이력 갱신 → 모니터링 추적 → broadcast."""
         async with self._lock:
             event.event_id = self.next_event_id()
             d = event.to_dict()
@@ -84,8 +104,102 @@ class Hub:
             self.history.append(d)
             if len(self.history) > self.history_limit:
                 self.history = self.history[-self.history_limit:]
+            self._track(d)
         await self.broadcast({"type": "event", "event": d})
         return d
+
+    def _track(self, d: dict):
+        """모니터링 상태 갱신 (센서 heartbeat / 체위 정지 / 무게 기준).
+
+        Tier 1/2 가 보낸 실측 데이터(total_kg, cog_x/y)가 있을 때만 추적.
+        """
+        bed = d["bed_id"]
+        now = time.time()
+        m = self.monitor.get(bed)
+        if m is None:
+            m = dict(last_seen=now, last_move=now,
+                     ref_cog=None, ref_weight=None, last_weight=None)
+            self.monitor[bed] = m
+            self.raised[bed] = set()
+        m["last_seen"] = now
+        # 센서가 다시 응답 -> offline 경고 상태 해제
+        self.raised[bed].discard(EventType.SENSOR_OFFLINE.value)
+
+        cx, cy = d.get("cog_x"), d.get("cog_y")
+        w = d.get("total_kg")
+
+        # 체위(정지) 추적: COG 가 기준점에서 still_cog_mm 이상 움직이면 '움직임'
+        if cx is not None and cy is not None:
+            ref = m["ref_cog"]
+            moved = (ref is None or
+                     abs(cx - ref[0]) > MONITOR["still_cog_mm"] or
+                     abs(cy - ref[1]) > MONITOR["still_cog_mm"])
+            if w is not None and m["ref_weight"] is not None:
+                moved = moved or abs(w - m["ref_weight"]) > MONITOR["still_weight_kg"]
+            if moved:
+                m["ref_cog"] = (cx, cy)
+                m["ref_weight"] = w
+                m["last_move"] = now
+                self.raised[bed].discard(EventType.POSTURE_ALERT.value)
+
+        # 무게 이상 급변 추적 (직전 수신 대비)
+        if w is not None:
+            prev = m["last_weight"]
+            m["_weight_jump"] = (w - prev) if prev is not None else 0.0
+            m["last_weight"] = w
+
+        # 침대가 비면(무게 낮음) 모니터링 리셋
+        if w is not None and w < 15:
+            m["ref_cog"] = None
+            m["ref_weight"] = None
+            m["last_move"] = now
+            self.raised[bed].clear()
+
+    async def check_monitors(self):
+        """주기적 점검 → 센서 오프라인 / 체위 변경 / 무게 이상 이벤트 생성."""
+        now = time.time()
+        to_raise = []
+        async with self._lock:
+            for bed, m in self.monitor.items():
+                raised = self.raised.setdefault(bed, set())
+                # 1) 센서 오프라인
+                offline = now - m["last_seen"] > MONITOR["offline_timeout_s"]
+                if offline and EventType.SENSOR_OFFLINE.value not in raised:
+                    raised.add(EventType.SENSOR_OFFLINE.value)
+                    to_raise.append(FallEvent(
+                        bed_id=bed, severity=Severity.DANGER.value,
+                        event_type=EventType.SENSOR_OFFLINE.value, source="server",
+                        reason="no_signal",
+                        message=f"센서 무응답 {int(now - m['last_seen'])}초 — 감시 중단 위험"))
+                # 센서가 오프라인이면 신호가 없으므로 체위/무게 판정은 무의미 -> 건너뜀
+                if offline:
+                    continue
+                # 2) 체위 변경 필요 (욕창) — 침대에 사람이 있을 때만
+                still = now - m["last_move"]
+                bed_state = self.beds.get(bed, {})
+                occupied = (bed_state.get("total_kg") or 0) >= 15
+                if (occupied and still > MONITOR["posture_interval_s"]
+                        and EventType.POSTURE_ALERT.value not in raised):
+                    raised.add(EventType.POSTURE_ALERT.value)
+                    to_raise.append(FallEvent(
+                        bed_id=bed, severity=Severity.CAUTION.value,
+                        event_type=EventType.POSTURE_ALERT.value, source="server",
+                        reason="stillness", still_seconds=round(still, 1),
+                        message=f"체위 변경 필요 — {int(still//60)}분 이상 동일 자세 (욕창 예방)"))
+                # 3) 이상 무게 급변 (마지막 수신에서 감지된 점프)
+                jump = m.get("_weight_jump", 0.0)
+                if (occupied and abs(jump) >= MONITOR["weight_anomaly_kg"]
+                        and EventType.WEIGHT_ANOMALY.value not in raised):
+                    raised.add(EventType.WEIGHT_ANOMALY.value)
+                    to_raise.append(FallEvent(
+                        bed_id=bed, severity=Severity.CAUTION.value,
+                        event_type=EventType.WEIGHT_ANOMALY.value, source="server",
+                        reason="weight_jump", weight_delta=round(jump, 1),
+                        message=f"이상 무게 변화 {jump:+.1f}kg 감지"))
+                elif abs(jump) < MONITOR["weight_anomaly_kg"]:
+                    raised.discard(EventType.WEIGHT_ANOMALY.value)
+        for ev in to_raise:
+            await self.ingest(ev)
 
     async def acknowledge(self, event_id: str) -> bool:
         """간호사 확인 처리. 이력·침대 상태 양쪽에서 표시."""
@@ -165,7 +279,28 @@ async def api_ack(event_id: str):
 
 @app.get("/healthz")
 async def healthz():
-    return {"status": "ok", "dashboards": len(hub.dashboards), "beds": len(hub.beds)}
+    return {"status": "ok", "dashboards": len(hub.dashboards),
+            "beds": len(hub.beds), "monitor": MONITOR}
+
+
+# ---------------- 백그라운드 모니터링 루프 ----------------
+@app.on_event("startup")
+async def _start_monitor():
+    async def loop():
+        while True:
+            try:
+                await hub.check_monitors()
+            except Exception as e:  # 루프가 죽지 않도록
+                print("monitor loop error:", e)
+            await asyncio.sleep(MONITOR["check_period_s"])
+    app.state.monitor_task = asyncio.create_task(loop())
+
+
+@app.on_event("shutdown")
+async def _stop_monitor():
+    t = getattr(app.state, "monitor_task", None)
+    if t:
+        t.cancel()
 
 
 # ---------------- 정적 대시보드 ----------------
