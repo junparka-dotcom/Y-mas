@@ -143,6 +143,20 @@ int  dangerHits = 0;
 unsigned long lastAlertMs = 0;
 const unsigned long ALERT_COOLDOWN_MS = 8000;
 
+// ---------- 자동 영점 보정 (auto-tare) ----------
+// 목적: PETG 지지 구조의 크리프(creep)로 zeroOffset 이 서서히 밀리는 것을 보정.
+// 원리: 침대가 확실히 비어 있고(raw 가 zeroOffset 근처) 값이 안정적일 때만,
+//       zeroOffset 을 아주 천천히(EMA) raw 쪽으로 끌어당긴다.
+//       크리프처럼 느린 드리프트만 추종하고, 사람이 올라오는 급변은 무시.
+bool  autoTareEnabled = true;
+float AT_ALPHA        = 0.02f;    // EMA 계수 (작을수록 느리게 추종)
+float AT_STABLE_KG    = 0.30f;    // 이 kg 이하 변동이어야 "안정"으로 간주
+uint32_t AT_HOLD_MS   = 3000;     // 빈 상태가 이만큼 지속돼야 보정 시작
+long  AT_MAX_STEP     = 500;      // 1회 보정 최대 이동량(raw count) — 폭주 방지
+uint32_t atEmptySince = 0;        // S_EMPTY 진입 시각 (0=미진입)
+uint32_t lastAutoTareMs = 0;
+long  lastAutoTareDelta[4] = {0,0,0,0};   // 진단용: 마지막 보정 이동량
+
 // ---------- 미분 계산 (지연 최소화를 위해 짧은 창) ----------
 #define DERIV_WIN 4
 float  hEdge[DERIV_WIN], hW[DERIV_WIN];
@@ -331,6 +345,43 @@ State judge(const Measure& m) {
 }
 
 // =============================================================
+// 자동 영점 보정 (auto-tare)
+//   st       : 이번 프레임 상태 (S_EMPTY 여야 후보)
+//   avg[4]   : 중앙값 필터를 거친 raw 평균 (zeroOffset 차감 전)
+//   m        : 현재 측정 (안정성 판단에 total 사용)
+// 조건을 모두 만족할 때만 zeroOffset 을 EMA 로 소폭 이동한다.
+// =============================================================
+void autoTare(State st, const float avg[4], const Measure& m) {
+  if (!autoTareEnabled) { atEmptySince = 0; return; }
+
+  // 빈 상태가 아니면 타이머 리셋 후 종료 (사람이 있으면 절대 건드리지 않음)
+  if (st != S_EMPTY) { atEmptySince = 0; return; }
+
+  uint32_t now = millis();
+  if (atEmptySince == 0) { atEmptySince = now; return; }
+
+  // 빈 상태가 충분히 지속됐는지
+  if (now - atEmptySince < AT_HOLD_MS) return;
+
+  // 값이 안정적인지: 현재 total(빈 상태라 0 근처여야) 의 절대값이 작아야 함
+  if (fabsf(m.total) > AT_STABLE_KG) return;
+
+  // 초당 1회 정도로만 (과보정 방지)
+  if (now - lastAutoTareMs < 1000) return;
+  lastAutoTareMs = now;
+
+  // 각 채널 zeroOffset 을 raw 쪽으로 EMA. 단, 1회 이동량은 AT_MAX_STEP 로 제한.
+  for (int i = 0; i < 4; i++) {
+    long target = (long)avg[i];
+    long delta  = (long)((target - zeroOffset[i]) * AT_ALPHA);
+    if (delta >  AT_MAX_STEP) delta =  AT_MAX_STEP;
+    if (delta < -AT_MAX_STEP) delta = -AT_MAX_STEP;
+    zeroOffset[i] += delta;
+    lastAutoTareDelta[i] = delta;
+  }
+}
+
+// =============================================================
 // NVS
 // =============================================================
 void saveCal() {
@@ -378,7 +429,9 @@ void printHelp() {
   Serial.println("  th                임계값 출력");
   Serial.println("  set <name> <val>  임계값 변경");
   Serial.println("     occ caut dang vel wloss wrate erate tte epred confirm");
+  Serial.println("     atalpha atstable athold");
   Serial.println("  rate              샘플링 속도 측정");
+  Serial.println("  autotare [on|off] 빈 상태 자동 영점(크리프 보정) 상태/전환");
   Serial.println("  save / load / raw / help");
   Serial.println("===============================");
   Serial.println();
@@ -457,6 +510,11 @@ void printTh() {
   Serial.print("  confirm 확정 회수      : "); Serial.println(CONFIRM_N);
   Serial.print("  pitch/gap mm           : ");
   Serial.print(CASTER_PITCH,1); Serial.print(" / "); Serial.println(RAIL_GAP,1);
+  Serial.print("  auto-tare              : ");
+  Serial.print(autoTareEnabled ? "ON":"OFF");
+  Serial.print("  alpha="); Serial.print(AT_ALPHA,3);
+  Serial.print(" stable="); Serial.print(AT_STABLE_KG,2);
+  Serial.print("kg hold="); Serial.print(AT_HOLD_MS); Serial.println("ms");
 }
 
 void doSet(String n, float v) {
@@ -470,6 +528,9 @@ void doSet(String n, float v) {
   else if (n=="tte")     TH_TTE=v;
   else if (n=="epred")   TH_EDGE_PRED=v;
   else if (n=="confirm") CONFIRM_N=(int)v;
+  else if (n=="atalpha") AT_ALPHA=v;
+  else if (n=="atstable")AT_STABLE_KG=v;
+  else if (n=="athold")  AT_HOLD_MS=(uint32_t)v;
   else { Serial.println("[ERR] 알 수 없는 항목"); return; }
   Serial.print("[OK] "); Serial.print(n);
   Serial.print("="); Serial.println(v,3);
@@ -505,6 +566,19 @@ void handleCommand(String line, const Measure& m) {
   else if (cmd=="save")      saveCal();
   else if (cmd=="load")      loadCal();
   else if (cmd=="rate")      doRateTest();
+  else if (cmd=="autotare") {
+    String a = rest; a.toLowerCase();
+    if      (a=="on")  { autoTareEnabled = true;  atEmptySince = 0; }
+    else if (a=="off") { autoTareEnabled = false; atEmptySince = 0; }
+    Serial.print("[OK] auto-tare "); Serial.println(autoTareEnabled ? "ON":"OFF");
+    Serial.print("  alpha="); Serial.print(AT_ALPHA,3);
+    Serial.print(" stable="); Serial.print(AT_STABLE_KG,2);
+    Serial.print("kg hold="); Serial.print(AT_HOLD_MS); Serial.println("ms");
+    Serial.print("  last delta ");
+    for (int i=0;i<4;i++){ Serial.print(CH_NAME[i]); Serial.print("=");
+                           Serial.print(lastAutoTareDelta[i]); Serial.print(" "); }
+    Serial.println();
+  }
   else if (cmd=="raw") {
     long r[4];
     if (hxReadBlocking(r)) { Serial.print("RAW ");
@@ -648,6 +722,9 @@ void loop() {
     everMeasured = true;
 
     State st = judge(lastM);
+
+    // 빈 상태에서 크리프 드리프트 자동 보정 (avg = zeroOffset 차감 전 raw)
+    autoTare(st, avg, lastM);
 
     if (st == S_ALERT) {
       if (millis() - lastAlertMs < ALERT_COOLDOWN_MS) {
