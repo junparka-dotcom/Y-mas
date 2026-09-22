@@ -84,4 +84,7 @@ module lid(){
     }
 }
 
+// rail_system.scad 조립 뷰 호환 별칭 (박스 본체 형상)
+module mcu_body(){ base(); }
+
 if(part=="base") base(); else lid();

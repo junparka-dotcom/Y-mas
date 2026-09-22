@@ -12,10 +12,10 @@
 | `plate1_pads.stl` | rail_pad | 4 | 200×218mm |
 | `plate2_adapter_cradle.stl` | rail_adapter ×4 + wheel_cradle ×4 | 8 | 282×258mm |
 | `plate3_chock_ramp.stl` | wheel_chock ×8 + rail_ramp seg0/1/2 각 ×2 | 14 | 307×234mm |
-| `plate4_mcu_box.stl` | mcu_box_base ×1 + mcu_box_lid ×1 | 2 | 166×60mm |
+| `plate4_enclosures.stl` | mcu_box(base+lid) + hx711_box(base×4+lid×4) | 10 | 166×120mm |
 
 모든 판이 베드(350×320) 안에 들어가며, 부품 간 겹침 0, 간격 6mm·가장자리 여백 8mm로 배치했습니다.
-plate4(MCU 박스)는 하중 경로가 아니라 전자부 보호용이라 PLA로 뽑아도 됩니다.
+plate4(인클로저)는 하중 경로가 아니라 전자부 보호용이라 PLA로 뽑아도 됩니다.
 
 ## 슬라이서 인필 — 판마다 다르게
 
@@ -26,7 +26,7 @@ plate4(MCU 박스)는 하중 경로가 아니라 전자부 보호용이라 PLA�
 | `plate1_pads` | **60%+** | 5겹 | 하중 경로. 크리프 방지 |
 | `plate2_adapter_cradle` | adapter **60%+** / cradle 40% | 5 / 4겹 | 어댑터는 하중 경로, cradle은 바퀴 하중+마찰 |
 | `plate3_chock_ramp` | chock 30% / **ramp 10~15%** | 3겹 | 램프는 하중 경로와 분리된 부품 |
-| `plate4_mcu_box` | 20~30% | 3겹 | 전자부 보호용. 하중 없음, PLA 가능 |
+| `plate4_enclosures` | 20~30% | 3겹 | 전자부 보호용(MCU+HX711). 하중 없음, PLA 가능 |
 
 ## ⚠️ plate3는 시간이 오래 걸립니다
 

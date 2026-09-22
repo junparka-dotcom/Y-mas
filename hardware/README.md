@@ -46,16 +46,18 @@ wheel_chock.stl       고임목                                x8
 rail_ramp_seg0/1/2    램프 3분할                            각 x2
 mcu_box_base.stl      중앙 MCU 박스 본체                    x1
 mcu_box_lid.stl       중앙 MCU 박스 뚜껑                    x1
+hx711_box_base.stl    HX711 박스 본체                       x4
+hx711_box_lid.stl     HX711 박스 뚜껑                       x4
 ```
 
-## 미복구 파일
+## 인클로저 (복원 완료)
 
-`hx711_enclosure.scad` 는 아직 미복구입니다(HX711 박스 34x24x16mm).
-`mcu_enclosure.scad` 는 **복원 완료**(ESP32 55×26×13 실측 반영).
-`rail_system.scad` 가 이 둘을 `use` 하므로, hx711 인클로저를 만들기 전까지
-전체 조립 뷰는 그대로 렌더되지 않습니다.
+`hx711_enclosure.scad` (HX711 박스 34x24x16) / `mcu_enclosure.scad` (MCU 박스
+80x60x30, ESP32 55x26x13 실측 반영) **둘 다 복원 완료**. 각각 `part="base"`/`"lid"`.
+`rail_system.scad` 전체 조립 뷰도 이제 정상 렌더됩니다(데크 93 / 램프 347 / 레일 2100).
 
 공통 규격: 벽 두께 2~2.5mm, 모서리 필렛 R1.5~2, 볼트+육각너트 트랩 관통 체결.
+HX711 박스는 유닛당 1개 = 4개, MCU 박스는 중앙 1개.
 
 ## STL 재생성
 
@@ -65,8 +67,10 @@ openscad -D 'part="bracket"' -o rail_adapter.stl  rail_loadcell_mount.scad
 openscad                     -o wheel_cradle.stl  wheel_cradle.scad
 openscad                     -o wheel_chock.stl   wheel_chock.scad
 for i in 0 1 2; do openscad -D "seg=$i" -o rail_ramp_seg$i.stl rail_ramp_segment.scad; done
-openscad -D 'part="base"'    -o mcu_box_base.stl  mcu_enclosure.scad
-openscad -D 'part="lid"'     -o mcu_box_lid.stl   mcu_enclosure.scad
+openscad -D 'part="base"'    -o mcu_box_base.stl    mcu_enclosure.scad
+openscad -D 'part="lid"'     -o mcu_box_lid.stl     mcu_enclosure.scad
+openscad -D 'part="base"'    -o hx711_box_base.stl  hx711_enclosure.scad
+openscad -D 'part="lid"'     -o hx711_box_lid.stl   hx711_enclosure.scad
 ```
 
 또는 배치 출력용 plate 재생성: `python3 make_plates.py`

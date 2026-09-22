@@ -147,15 +147,28 @@ def main():
         ry += h + GAP                            # 다음 세그는 아래 행
     plates["plate3_chock_ramp"] = pack(parts, objs3)
 
-    # ---- Plate 4: MCU 박스 base + lid (전자부 인클로저, 각 1개) ----
-    # 하중경로 아님(PLA 가능)이라 별도 판. base 80x60x30 + lid 80x60x2.5.
+    # ---- Plate 4: 전자부 인클로저 (하중경로 아님, PLA 가능) ----
+    # MCU 박스 base+lid 각 1 + HX711 박스 base+lid 각 4.
     if "mcu_box_base" in parts and "mcu_box_lid" in parts:
         objs4 = []
+        # 위쪽 줄: MCU base + lid 나란히
         bw, bh, box, boy = part_size(parts, "mcu_box_base")
         objs4.append(("mcu_box_base", MARGIN - box, MARGIN - boy))
         lw, lh, lox, loy = part_size(parts, "mcu_box_lid")
         objs4.append(("mcu_box_lid", MARGIN + bw + GAP - lox, MARGIN - loy))
-        plates["plate4_mcu_box"] = pack(parts, objs4)
+        # 아래 줄: HX711 base x4 + lid x4 (34x24, 작아서 한 줄에 여러 개)
+        if "hx711_box_base" in parts and "hx711_box_lid" in parts:
+            hy = MARGIN + max(bh, lh) + GAP
+            hbw, hbh, hbox, hboy = part_size(parts, "hx711_box_base")
+            hlw, hlh, hlox, hloy = part_size(parts, "hx711_box_lid")
+            x = MARGIN
+            for _ in range(4):     # base x4
+                objs4.append(("hx711_box_base", x - hbox, hy - hboy)); x += hbw + GAP
+            hy2 = hy + max(hbh, hlh) + GAP
+            x = MARGIN
+            for _ in range(4):     # lid x4
+                objs4.append(("hx711_box_lid", x - hlox, hy2 - hloy)); x += hlw + GAP
+        plates["plate4_enclosures"] = pack(parts, objs4)
 
     # ---- 검증 + 출력 ----
     for pname, objs in plates.items():
