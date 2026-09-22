@@ -11,7 +11,7 @@
 |---|---|---|---|
 | `plate1_pads.stl` | rail_pad | 4 | 200×218mm |
 | `plate2_bracket_cradle.stl` | rail_bracket ×4 + wheel_cradle ×4 | 8 | 206×258mm |
-| `plate3_chock_ramp.stl` | wheel_chock ×8 + rail_ramp seg0/1/2 각 ×2 | 14 | 324×228mm |
+| `plate3_chock_ramp.stl` | wheel_chock ×8 + rail_ramp seg0/1/2 각 ×2 | 14 | 297×234mm |
 
 모든 판이 베드(350×320) 안에 들어가며, 부품 간 겹침 0, 간격 6mm·가장자리 여백 8mm로 배치했습니다.
 
