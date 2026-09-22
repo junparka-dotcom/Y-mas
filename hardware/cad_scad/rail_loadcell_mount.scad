@@ -43,19 +43,39 @@ module pad(){
     }
 }
 
-// ---------- 레일 브래킷 ----------
-br_l = 90; br_w = RAIL_w;
+// ---------- 어댑터 플레이트 (구 bracket) ----------
+// 로드셀 자유단 상면 <-> 알루미늄 레일 연결. 80x80x12.
+// 배치(플레이트 로컬 좌표, 원점=좌하단):
+//   - 자유단 체결 4홀: 플레이트 한쪽 끝(x=ADP_end_x 근처)에 19x15 피치로.
+//     여기가 로드셀 자유단 위에 얹혀 M6 로 물린다.
+//   - 레일 체결 4홀: 자유단 홀에서 ADP_OFFSET 만큼 떨어진 위치(슬롯 반대쪽).
+//     -> 레일/바퀴 슬롯이 자유단 볼트 자리를 관통하지 않도록 수평 이격.
+//   - 자유단 체결부를 제외한 하면은 로드셀 몸통과 떠 있어야 함(외팔보 단락 방지).
+//     조립 배치로 보장되나, 안전하게 자유단 반대쪽 하면에 릴리프 포켓을 판다.
+br_l = ADP_l; br_w = ADP_w;
+
+// 자유단 홀 그룹 중심 x (플레이트 끝에서 안쪽으로 살짝 들인 위치)
+adp_free_cx = 20;
+// 레일 홀 그룹 중심 x = 자유단에서 오프셋만큼 이격
+adp_rail_cx = adp_free_cx + ADP_OFFSET;
+
 module bracket(){
-    echo(str("브래킷 ",br_l,"x",br_w,"x",BRACKET_t));
+    echo(str("어댑터 ",br_l,"x",br_w,"x",ADP_t,
+             " / 자유단홀 cx=",adp_free_cx," 레일홀 cx=",adp_rail_cx,
+             " 오프셋=",ADP_OFFSET," (임의값, 실측확정 요)"));
     difference(){
-        rbox(br_l,br_w,BRACKET_t,2);
-        // 로드셀 자유단 M6 4개 (중앙 19x15) - 상면 카운터보어
-        for(dx=[-L_pitch_x/2,L_pitch_x/2]) for(dy=[-L_pitch_y/2,L_pitch_y/2]){
-            translate([br_l/2+dx, br_w/2+dy, -1]) cylinder(d=6.6,h=BRACKET_t+2);
-        }
-        // 레일 T너트 체결 M5 x4 (모서리, 홀 패턴과 간섭 없음)
-        for(dx=[14, br_l-14]) for(dy=[12, br_w-12])
-            translate([dx,dy,-1]) cylinder(d=5.3,h=BRACKET_t+2);
+        rbox(br_l,br_w,ADP_t,2);
+        // (1) 로드셀 자유단 M6 4개 (19x15 피치) - 한쪽 끝
+        for(dx=[-L_pitch_x/2,L_pitch_x/2]) for(dy=[-L_pitch_y/2,L_pitch_y/2])
+            translate([adp_free_cx+dx, br_w/2+dy, -1])
+                cylinder(d=6.6, h=ADP_t+2);
+        // (2) 레일 T너트 체결 M5 4개 - 오프셋된 위치(슬롯 반대쪽)
+        for(dx=[-L_pitch_x/2, L_pitch_x/2]) for(dy=[-18, 18])
+            translate([adp_rail_cx+dx, br_w/2+dy, -1])
+                cylinder(d=5.3, h=ADP_t+2);
+        // 주: 자유단 체결부 외 하면은 로드셀 몸통과 떠 있어야 함(외팔보 단락 방지).
+        //     릴리프 포켓은 로드셀↔어댑터 상대배치(rail_system, 현재 미복구)와
+        //     실측이 확정된 뒤 추가할 것. 지금은 강성 유지를 위해 생략.
     }
 }
 if(part=="pad") pad(); else bracket();
