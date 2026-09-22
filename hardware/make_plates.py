@@ -131,10 +131,12 @@ def main():
     plates["plate2_bracket_cradle"] = pack(parts, objs2)
 
     # ---- Plate 3: wheel_chock x8 (42x24) + ramp seg0/1/2 x2 each ----
-    # 좌측: chock 8개를 2열x4행. 우측: ramp 3종을 각 행에 2개씩 나란히.
-    chl, chw, chh = row_layout(parts, "wheel_chock", 8, x_start=MARGIN, per_col=4)
+    # 좌측: chock 8개를 1열x8행(폭 절약). 우측: ramp 3종을 각 행에 2개씩 나란히.
+    # 램프는 다웰 핀 때문에 X로 길어져(118.7mm) 2개 나란히 두면 폭이 크므로
+    # chock 를 1열로 좁혀 ramp 시작 X 를 앞당긴다.
+    chl, chw, chh = row_layout(parts, "wheel_chock", 8, x_start=MARGIN, per_col=8)
     objs3 = chl[:]
-    ramp_x = MARGIN + 2 * (chw + GAP) + GAP
+    ramp_x = MARGIN + (chw + GAP) + GAP
     ry = MARGIN
     for seg in ("rail_ramp_seg0", "rail_ramp_seg1", "rail_ramp_seg2"):
         w, h, ox, oy = part_size(parts, seg)
