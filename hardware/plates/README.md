@@ -35,6 +35,12 @@ plates/
 |---|---|---|---|
 | `plate_chock_ramp` | wheel_chock ×8 + rail_ramp seg0/1/2 각 ×2 | 14 | 307×234mm |
 | `plate_enclosures` | mcu_box(base+lid) + hx711_box(base×4+lid×4) | 10 | 166×120mm |
+| `plate_chock_enclosures` | wheel_chock ×8 + mcu_box + hx711_box(×4) | 18 | 214×234mm |
+
+> **`plate_chock_enclosures`** 는 램프를 지금 안 뽑을 때 쓰는 **통합 판**입니다.
+> 휠초크 + 전자부 인클로저를 한 번에 출력 (램프 제외). 램프는 부피가 커서
+> 나중에 따로 뽑거나 합판/각목 대체. plate_chock_ramp / plate_enclosures 와는
+> 부품이 겹치므로 **셋 중 필요한 조합만** 골라 쓰세요.
 
 모든 판이 베드(350×320) 안에 들어가며, 부품 간 겹침 0, 간격 6mm·가장자리 여백 8mm로 배치했습니다.
 생성기(`make_plates.py`)가 **재료 혼합을 assert로 차단**하므로 판에 다른 재료가 섞이지 않습니다.

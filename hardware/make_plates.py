@@ -182,6 +182,32 @@ def build_plates(parts):
                 objs.append(("hx711_box_lid", x - hlox, hy2 - hloy)); x += hlw + GAP
         plates["plate_enclosures"] = ("pla", pack(parts, objs))
 
+    # Plate: 램프 제외 PLA 통합 — wheel_chock x8 + MCU(base+lid) + HX711(base x4 + lid x4)
+    # 램프를 지금 안 뽑을 때 한 판에 병합해서 출력.
+    if "mcu_box_base" in parts and "hx711_box_base" in parts:
+        objs = []
+        # 좌측: chock 8개 1열
+        chl, chw2, chh2 = row_layout(parts, "wheel_chock", 8, x_start=MARGIN, per_col=8)
+        objs += chl
+        # 우측 상단: MCU base + lid
+        mx = MARGIN + chw2 + GAP
+        bw, bh, box, boy = part_size(parts, "mcu_box_base")
+        objs.append(("mcu_box_base", mx - box, MARGIN - boy))
+        lw, lh, lox, loy = part_size(parts, "mcu_box_lid")
+        objs.append(("mcu_box_lid", mx + bw + GAP - lox, MARGIN - loy))
+        # 우측 하단: HX711 base x4 (한 줄) + lid x4 (다음 줄)
+        hy = MARGIN + max(bh, lh) + GAP
+        hbw, hbh, hbox, hboy = part_size(parts, "hx711_box_base")
+        hlw, hlh, hlox, hloy = part_size(parts, "hx711_box_lid")
+        x = mx
+        for _ in range(4):
+            objs.append(("hx711_box_base", x - hbox, hy - hboy)); x += hbw + GAP
+        hy2 = hy + max(hbh, hlh) + GAP
+        x = mx
+        for _ in range(4):
+            objs.append(("hx711_box_lid", x - hlox, hy2 - hloy)); x += hlw + GAP
+        plates["plate_chock_enclosures"] = ("pla", pack(parts, objs))
+
     return plates
 
 
