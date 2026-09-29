@@ -52,7 +52,7 @@
   #include <EthernetUdp.h>
   byte MAC_ADDR[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0x01};
   IPAddress ESP_IP   (192, 168, 0, 50);
-  IPAddress JETSON_IP(192, 168, 0, 100);
+  IPAddress JETSON_IP(192, 168, 0, 9);    // Jetson AGX Orin 실측 IP (재플래시 후 확정)
   const uint16_t JETSON_PORT = 5005;
   const int W5500_CS = 5;
   EthernetUDP udp;
@@ -61,7 +61,7 @@
   #include <WiFiUdp.h>
   const char* WIFI_SSID = "YOUR_SSID";
   const char* WIFI_PASS = "YOUR_PASS";
-  IPAddress JETSON_IP(192, 168, 0, 100);
+  IPAddress JETSON_IP(192, 168, 0, 9);    // Jetson AGX Orin 실측 IP (재플래시 후 확정)
   const uint16_t JETSON_PORT = 5005;
   WiFiUDP udp;
 #endif
