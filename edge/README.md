@@ -1,7 +1,7 @@
 # edge/ — Jetson Tier 2 실시간 추론
 
 Orbbec Femto W(ToF) → IR/Depth 캡처 → YOLO11n-pose → depth 3D 리프팅 →
-NTU 25관절 매핑 → ST-GCN(v17) 낙상 판정. Jetson Orin Nano Super 에서 구동.
+NTU 25관절 매핑 → ST-GCN(v17) 낙상 판정. Jetson AGX Orin 에서 구동.
 
 ## 파일
 

@@ -24,7 +24,10 @@ Tier 1 이 UDP 트리거를 보내면 Tier 2 가 `threading.Event` 로 깨어난
 ## 확정 사항 (변경 제안 불필요)
 
 ### 하드웨어
-- 엣지 보드: NVIDIA Jetson Orin Nano Super 8GB, JetPack 6.2.1
+- 엣지 보드: **NVIDIA Jetson AGX Orin** (JetPack 6.x)
+  - 기존 Orin Nano Super 8GB 에서 교체. AGX Orin 은 CUDA 코어·메모리·전력이
+    훨씬 크므로 추론 성능 여유가 대폭 증가(아래 v17 성능 수치는 Nano Super
+    기준 하한선 — AGX Orin 에서는 더 빠름). YOLO11n-pose + v17 동시 구동에 여유.
 - 카메라: Orbbec Femto W (ToF, Depth/IR) — **IR 이 주 입력** (소등 시 RGB 검출 0)
 - MCU: ESP32-WROOM-32D
 - 로드셀: CAS BCA-100L ×4 (150×35×**40**mm, 100kg, 2mV/V, IP65)

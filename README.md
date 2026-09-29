@@ -30,7 +30,7 @@
 - trainable 약 1.48M 파라미터 (state_dict 총합 1.50M, BN 버퍼 포함)
 - 학습: Focal Loss(γ=1.5) + EMA + Mixup + SWA, 도메인 균형 체크포인트 선택
 - 데이터: **NTU RGB+D 120 + ETRI-Activity3D** (둘 다 Kinect V2 계열)
-- 배포: ONNX opset 18 → TensorRT FP16 (Jetson Orin Nano Super)
+- 배포: ONNX opset 18 → TensorRT FP16 (Jetson AGX Orin)
 
 ## 저장소 구조
 
