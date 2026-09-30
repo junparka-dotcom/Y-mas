@@ -1,0 +1,34 @@
+[Unit]
+Description=Y-mas Tier2 - realtime fall detection (headless)
+Documentation=https://github.com/junparka-dotcom/Y-mas
+# 브리지가 뜬 뒤 시작. 브리지가 죽으면 함께 재시작.
+After=ymas-bridge.service
+Requires=ymas-bridge.service
+
+[Service]
+Type=simple
+User=ymas
+Group=ymas
+WorkingDirectory=/home/ymas/Y-mas/edge
+
+# 무인 운영: GUI 없이 로그/경보만. (DISPLAY 미설정이라 어차피 헤드리스지만 명시)
+Environment=YMAS_HEADLESS=1
+# ~/.local (pip --user: cuda-python, onnxruntime 등) 인식용 홈 지정
+Environment=HOME=/home/ymas
+# 엔진 있으면 GPU(TensorRT), 없으면 onnxruntime 폴백은 코드가 자동 처리.
+# CPU 강제 비교가 필요하면 아래 주석 해제:
+# Environment=YMAS_FORCE_ONNX=1
+
+# 브리지 소켓이 준비될 시간을 살짝 준 뒤 시작(코드에도 재연결 루프 있음)
+ExecStartPre=/bin/sleep 2
+ExecStart=/usr/bin/python3 /home/ymas/Y-mas/edge/ymas_realtime_ir.py
+
+Restart=always
+RestartSec=3
+StartLimitIntervalSec=0
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
