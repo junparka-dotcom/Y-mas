@@ -4,6 +4,8 @@ Documentation=https://github.com/junparka-dotcom/Y-mas
 # 브리지가 뜬 뒤 시작. 브리지가 죽으면 함께 재시작.
 After=ymas-bridge.service
 Requires=ymas-bridge.service
+# 짧은 시간에 반복 실패해도 계속 재시도 (재시작 제한 해제) — [Unit] 섹션에 위치해야 함
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -25,7 +27,6 @@ ExecStart=/usr/bin/python3 /home/ymas/Y-mas/edge/ymas_realtime_ir.py
 
 Restart=always
 RestartSec=3
-StartLimitIntervalSec=0
 
 StandardOutput=journal
 StandardError=journal

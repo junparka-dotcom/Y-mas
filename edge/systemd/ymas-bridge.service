@@ -4,6 +4,8 @@ Documentation=https://github.com/junparka-dotcom/Y-mas
 # 부팅 시 USB 카메라가 준비된 뒤 시작하도록
 After=multi-user.target
 Wants=multi-user.target
+# 짧은 시간에 반복 실패해도 계속 재시도 (재시작 제한 해제) — [Unit] 섹션에 위치해야 함
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -18,8 +20,6 @@ ExecStart=/home/ymas/Y-mas/edge/bridges/ir_depth_bridge
 # 크래시/카메라 오류 시 자동 재시작 (USB 워밍업 여유 두고 재시도)
 Restart=always
 RestartSec=3
-# 짧은 시간에 반복 실패해도 계속 재시도 (기본 제한 완화)
-StartLimitIntervalSec=0
 
 # 로그는 journald 로 (journalctl -u ymas-bridge)
 StandardOutput=journal
