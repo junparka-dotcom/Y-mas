@@ -32,6 +32,12 @@ FALL_ONNX_PATH = _resolve("YMAS_FALL_ONNX", "ymas_v17.onnx")
 BED_JSON_PATH  = _resolve("YMAS_BED_JSON",  "bed_region.json")
 LOG_DIR        = Path(os.environ.get("YMAS_LOG_DIR", str(EDGE_DIR / "logs")))
 
+# TensorRT 엔진 경로(있으면 GPU 우선, 없으면 onnxruntime CPU 폴백).
+POSE_ENGINE_PATH = _resolve("YMAS_POSE_ENGINE", "yolo11n-pose_fp16.engine")
+FALL_ENGINE_PATH = _resolve("YMAS_FALL_ENGINE", "ymas_v17_fp16.engine")
+# YMAS_FORCE_ONNX=1 이면 엔진 무시하고 강제로 onnxruntime(CPU) 사용(디버그/비교용).
+FORCE_ONNX = os.environ.get("YMAS_FORCE_ONNX", "0") == "1"
+
 # ============================================================
 # 학습 코드(ymas_v17.ipynb CELL 2/4/7)와 동일한 상수
 # ============================================================
@@ -263,36 +269,68 @@ def yolo_preprocess(img, size=YOLO_SIZE):
 
 # ============================================================
 # 모델 로드 (한 번만)
+# ------------------------------------------------------------
+# 백엔드 선택 전략(모델별 독립):
+#   1) YMAS_FORCE_ONNX=1 이 아니고, TensorRT 엔진 파일이 있으며, trt_infer 임포트가
+#      되면 → GPU(TensorRT) 사용.
+#   2) 아니면 → onnxruntime(CPU 폴백) 사용.
+# 두 백엔드 모두 동일한 호출 규약을 제공하도록 얇은 래퍼로 감싼다:
+#   pose_run(blob)  -> np.ndarray  (YOLO output0, shape (1,56,N))
+#   fall_run(skel, phys) -> np.ndarray (logits, shape (3,))
+# 전처리/출력 파싱/상수(PMEAN/PSTD/TH_FALL)는 불변 — 추론 실행부만 백엔드에 위임.
 # ============================================================
 sess_opts = ort.SessionOptions()
 sess_opts.intra_op_num_threads = 6
 sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
-# ONNX Runtime 프로바이더: 가능하면 CUDA 사용, 없으면 CPU 폴백.
-# (Jetson 에서 CUDA 를 쓰려면 JetPack 용 onnxruntime-gpu wheel 이 필요하다.
-#  기본 PyPI onnxruntime 은 CPU only 이며 그 경우 자동으로 CPU 로 동작한다.)
-_avail = ort.get_available_providers()
-_providers = (["CUDAExecutionProvider", "CPUExecutionProvider"]
-              if "CUDAExecutionProvider" in _avail else ["CPUExecutionProvider"])
+_trt_ok = False
+if not FORCE_ONNX:
+    try:
+        from trt_infer import TRTModel
+        _trt_ok = True
+    except Exception as e:
+        log(f"TensorRT 헬퍼 임포트 실패({e}) → onnxruntime 폴백")
 
-for _p, _path in (("YOLO11n-pose", POSE_ONNX_PATH), ("v17 fall", FALL_ONNX_PATH)):
-    if not Path(_path).exists():
-        log(f"[치명] {_p} ONNX 모델을 찾을 수 없음: {_path}")
-        log("      export/배치 후 다시 실행하거나 YMAS_POSE_ONNX/YMAS_FALL_ONNX 로 경로를 지정하세요.")
+# ---- YOLO11n-pose ----
+if _trt_ok and Path(POSE_ENGINE_PATH).exists():
+    log(f"pose  backend: TensorRT  ({POSE_ENGINE_PATH})")
+    _pose_trt = TRTModel(str(POSE_ENGINE_PATH))
+    _pose_in = _pose_trt.input_names[0]      # 'images'
+    def pose_run(blob):
+        return _pose_trt.run({_pose_in: blob})[0]
+else:
+    if not Path(POSE_ONNX_PATH).exists():
+        log(f"[치명] YOLO11n-pose 모델 없음(엔진/ONNX 모두): {POSE_ENGINE_PATH} / {POSE_ONNX_PATH}")
         sys.exit(1)
+    _avail = ort.get_available_providers()
+    _providers = (["CUDAExecutionProvider", "CPUExecutionProvider"]
+                  if "CUDAExecutionProvider" in _avail else ["CPUExecutionProvider"])
+    log(f"pose  backend: onnxruntime {_providers}  ({POSE_ONNX_PATH})")
+    _pose_session = ort.InferenceSession(str(POSE_ONNX_PATH),
+                                         sess_options=sess_opts, providers=_providers)
+    _pose_in = _pose_session.get_inputs()[0].name
+    def pose_run(blob):
+        return _pose_session.run(None, {_pose_in: blob})[0]
 
-log(f"ONNX Runtime providers: {_providers}")
-log(f"pose  ONNX: {POSE_ONNX_PATH}")
-log(f"fall  ONNX: {FALL_ONNX_PATH}")
-
-pose_session = ort.InferenceSession(str(POSE_ONNX_PATH),
-                                     sess_options=sess_opts,
-                                     providers=_providers)
-pose_input_name = pose_session.get_inputs()[0].name
-
-fall_session = ort.InferenceSession(str(FALL_ONNX_PATH),
-                                     sess_options=sess_opts,
-                                     providers=_providers)
+# ---- ST-GCN v17 ----
+if _trt_ok and Path(FALL_ENGINE_PATH).exists():
+    log(f"fall  backend: TensorRT  ({FALL_ENGINE_PATH})")
+    _fall_trt = TRTModel(str(FALL_ENGINE_PATH))
+    def fall_run(skel_input, phys_input):
+        # 엔진 입력 텐서 이름: 'skeleton', 'physics' / 출력: 'logits'
+        return _fall_trt.run({"skeleton": skel_input, "physics": phys_input})[0][0]
+else:
+    if not Path(FALL_ONNX_PATH).exists():
+        log(f"[치명] v17 낙상 모델 없음(엔진/ONNX 모두): {FALL_ENGINE_PATH} / {FALL_ONNX_PATH}")
+        sys.exit(1)
+    _avail = ort.get_available_providers()
+    _providers = (["CUDAExecutionProvider", "CPUExecutionProvider"]
+                  if "CUDAExecutionProvider" in _avail else ["CPUExecutionProvider"])
+    log(f"fall  backend: onnxruntime {_providers}  ({FALL_ONNX_PATH})")
+    _fall_session = ort.InferenceSession(str(FALL_ONNX_PATH),
+                                         sess_options=sess_opts, providers=_providers)
+    def fall_run(skel_input, phys_input):
+        return _fall_session.run(None, {"skeleton": skel_input, "physics": phys_input})[0][0]
 
 WINDOW_SECONDS = 3.0
 INFER_INTERVAL = 0.5
@@ -354,7 +392,7 @@ def run_session(sock):
 
         if frame_count % YOLO_EVERY_N == 0:
             blob, scale = yolo_preprocess(ir_3ch)
-            output = pose_session.run(None, {pose_input_name: blob})[0]
+            output = pose_run(blob)
             preds = output[0].T
             dets = preds[preds[:, 4] > YOLO_CONF]
             raw_kpts_2d = select_person_in_bed(dets, scale)
@@ -427,7 +465,7 @@ def run_session(sock):
             skel_input = skel_stream[None].astype(np.float32)
             phys_input = phys_norm[None].astype(np.float32)
 
-            logits = fall_session.run(None, {"skeleton": skel_input, "physics": phys_input})[0][0]
+            logits = fall_run(skel_input, phys_input)
             probs = np.exp(logits) / np.exp(logits).sum()
 
             pred_class = 2 if probs[2] >= TH_FALL else int(np.argmax(probs[:2]))
