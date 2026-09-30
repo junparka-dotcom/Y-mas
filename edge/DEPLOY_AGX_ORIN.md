@@ -235,6 +235,59 @@ sudo nvpmodel -m 3      # 평소 50W 모드
 
 ---
 
+## 8. 무인 운영 — systemd 부팅 자동실행/자동복구
+
+24시간 무인 낙상 감지를 위해 브리지+추론을 systemd 서비스로 등록한다.
+부팅 시 자동 시작 + 프로세스가 죽으면 자동 재시작(`Restart=always`).
+
+### 8-1. 헤드리스 모드
+서비스는 GUI(디스플레이)가 없으므로 실시간 스크립트가 헤드리스로 동작해야 한다.
+`ymas_realtime_ir.py` 는 `YMAS_HEADLESS=1`(또는 `DISPLAY` 미설정)이면 자동으로
+`cv2.imshow`/렌더를 생략하고 **로그/경보만** 남긴다(30초 하트비트 로그 포함).
+GUI 로 보고 싶으면 그냥 데스크톱 터미널에서 직접 실행하면 된다.
+
+### 8-2. 설치 (서비스 등록 + 자동시작)
+```bash
+cd ~/Y-mas/edge/systemd
+sudo bash install_services.sh
+```
+스크립트가 하는 일: 유닛 파일을 `/etc/systemd/system/` 로 복사 →
+`daemon-reload` → `enable`(부팅 자동시작) → `start`.
+
+두 서비스:
+| 서비스 | 역할 | 의존 |
+|---|---|---|
+| `ymas-bridge.service`   | Orbbec C++ 브리지(카메라 캡처) | - |
+| `ymas-realtime.service` | 헤드리스 추론(낙상 판정)        | bridge 를 Requires/After |
+
+### 8-3. 상태/로그 확인
+```bash
+systemctl status ymas-bridge ymas-realtime
+journalctl -u ymas-realtime -f    # 실시간 판정/하트비트 로그
+journalctl -u ymas-bridge -f      # 브리지(카메라) 로그
+```
+
+### 8-4. 재시작/중지/제거
+```bash
+sudo systemctl restart ymas-realtime          # 추론만 재시작
+sudo systemctl restart ymas-bridge            # 브리지 재시작(추론도 함께 영향)
+sudo systemctl disable --now ymas-realtime ymas-bridge   # 자동시작 해제 + 중지
+```
+
+### 8-5. 부팅 자동실행 검증
+```bash
+sudo reboot
+# 재부팅 후(로그인 없이도 떠 있어야 함):
+systemctl is-active ymas-bridge ymas-realtime   # 둘 다 active
+journalctl -u ymas-realtime -n 20               # 판정/하트비트 로그 확인
+```
+
+> 참고: `edge/watchdog.sh` 는 systemd 가 없는 환경용 폴백(브리지만 감시)이다.
+> systemd 를 쓰면 8단계로 대체된다(브리지+추론 모두 감시/복구).
+> GPU 엔진(6-B)이 있으면 서비스도 자동으로 TensorRT 를 쓴다.
+
+---
+
 ## 트러블슈팅
 | 증상 | 원인/해결 |
 |---|---|
@@ -251,3 +304,7 @@ sudo nvpmodel -m 3      # 평소 50W 모드
 | 브리지 카메라 오픈 실패/권한 | udev 규칙 설치 후 USB 재삽입(5-3) |
 | 실시간 `cv2.imshow` display 오류 | Orin 로컬 디스플레이 필요. 순수 SSH 면 GUI 표시 안 됨 |
 | 모델 경로 못 찾음 | 경로 하드코딩 제거됨(스크립트 기준 자동). `YMAS_POSE_ONNX` 등 env 로 override 가능 |
+| systemd 서비스가 GUI 오류로 죽음 | 서비스는 헤드리스여야 함. `YMAS_HEADLESS=1` 이 유닛에 설정돼 있음(8-1) |
+| 서비스에서 cuda-python/onnxruntime 못 찾음 | pip `--user` 설치라 `HOME=/home/ymas` 가 유닛에 설정돼 `~/.local` 인식(8-2) |
+| 서비스 계속 재시작 반복 | `journalctl -u ymas-realtime -n 50` 로 원인 확인. 모델/엔진 파일 존재 여부부터 |
+| 재부팅 후 안 뜸 | `systemctl is-enabled ymas-bridge ymas-realtime` 확인. 아니면 `enable`(8-2) |
