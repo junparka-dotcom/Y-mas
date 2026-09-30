@@ -195,6 +195,38 @@ python3 ymas_realtime_ir.py    # 브리지가 /tmp/ymas_irdepth.sock 스트리�
 
 ---
 
+## 6-B. (최적화) GPU 추론 — TensorRT 백엔드
+
+기본은 YOLO11n-pose / ST-GCN 을 **CPU onnxruntime** 으로 돌린다(30fps 나옴).
+아래처럼 **TensorRT 엔진**을 만들어 두면 `ymas_realtime_ir.py` 가 자동으로 GPU 를 쓴다
+(엔진 없으면 onnxruntime 으로 폴백, `YMAS_FORCE_ONNX=1` 이면 강제 CPU).
+
+```bash
+cd ~/Y-mas/edge
+# (빌드 중엔 MAXN 권장)  sudo nvpmodel -m 0 && sudo jetson_clocks
+
+# YOLO11n-pose ONNX → FP16 엔진 (입력 고정 1x3x320x320 → --shapes 불필요)
+/usr/src/tensorrt/bin/trtexec \
+  --onnx=yolo11n-pose.onnx \
+  --saveEngine=yolo11n-pose_fp16.engine --fp16
+# ST-GCN 엔진은 2단계에서 이미 빌드함(ymas_v17_fp16.engine)
+
+# 엔진 텐서 이름 확인용(YOLO: images/output0, STGCN: skeleton,physics/logits)
+python3 -c "import tensorrt as trt; l=trt.Logger();
+import sys; f=open('yolo11n-pose_fp16.engine','rb'); e=trt.Runtime(l).deserialize_cuda_engine(f.read());
+print([(e.get_tensor_name(i), e.get_tensor_mode(e.get_tensor_name(i))) for i in range(e.num_io_tensors)])"
+```
+
+- 실행은 6-4 와 동일(`python3 ymas_realtime_ir.py`). 시작 로그에
+  `pose backend: TensorRT` / `fall backend: TensorRT` 가 뜨면 GPU 사용 중.
+- 헬퍼: `edge/trt_infer.py`(cuda-python 기반, onnxruntime.run 유사 규약).
+- 실측(50W 모드): FPS 30 유지, `tegrastats` 상 CPU 코어 대부분 <20%, GR3D(GPU) 활성.
+  YOLO 를 GPU 로 넘겨 CPU 여유가 크게 확보됨(멀티카메라/추가로직 여지).
+- FP16 이라 확률값은 소수점 미세차 가능하나 판정 클래스는 CPU 와 동일해야 함.
+  비교하려면 `YMAS_FORCE_ONNX=1 python3 ymas_realtime_ir.py` 로 CPU 강제.
+
+---
+
 ## 7. 마치고 — 전력 원복
 ```bash
 sudo jetson_clocks --restore
