@@ -37,6 +37,9 @@ POSE_ENGINE_PATH = _resolve("YMAS_POSE_ENGINE", "yolo11n-pose_fp16.engine")
 FALL_ENGINE_PATH = _resolve("YMAS_FALL_ENGINE", "ymas_v17_fp16.engine")
 # YMAS_FORCE_ONNX=1 이면 엔진 무시하고 강제로 onnxruntime(CPU) 사용(디버그/비교용).
 FORCE_ONNX = os.environ.get("YMAS_FORCE_ONNX", "0") == "1"
+# YMAS_HEADLESS=1 이면 GUI(cv2.imshow) 없이 로그/경보만 (systemd 무인 운영용).
+# DISPLAY 환경변수가 없으면(SSH/서비스) 자동으로 헤드리스로 강제한다.
+HEADLESS = os.environ.get("YMAS_HEADLESS", "0") == "1" or not os.environ.get("DISPLAY")
 
 # ============================================================
 # 학습 코드(ymas_v17.ipynb CELL 2/4/7)와 동일한 상수
@@ -335,6 +338,7 @@ else:
 WINDOW_SECONDS = 3.0
 INFER_INTERVAL = 0.5
 MIN_FRAMES = 15
+HEARTBEAT_INTERVAL = 30.0   # 헤드리스 모드에서 살아있음 로그 주기(초)
 
 
 def connect_socket():
@@ -370,6 +374,7 @@ def run_session(sock):
     fps_t0 = time.time()
     fps_counter = 0
     display_fps = 0.0
+    last_heartbeat = 0.0
 
     while True:
         header = recv_exact(sock, HEADER_SIZE)
@@ -381,11 +386,14 @@ def run_session(sock):
         depth_arr = np.frombuffer(depth_bytes, dtype=np.uint16).reshape((h, w))
 
         ir_8u = cv2.normalize(ir_arr, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-        ir_3ch = cv2.cvtColor(ir_8u, cv2.COLOR_GRAY2BGR)
-        display_img = ir_3ch.copy()
+        ir_3ch = cv2.cvtColor(ir_8u, cv2.COLOR_GRAY2BGR)   # YOLO 입력용(헤드리스에서도 필요)
 
-        if BED_POLY is not None:
-            cv2.polylines(display_img, [BED_POLY], True, (255, 128, 0), 2)
+        if HEADLESS:
+            display_img = None                              # GUI 미사용 → 렌더 캔버스 불필요
+        else:
+            display_img = ir_3ch.copy()
+            if BED_POLY is not None:
+                cv2.polylines(display_img, [BED_POLY], True, (255, 128, 0), 2)
 
         now = time.time()
         frame_count += 1
@@ -408,15 +416,16 @@ def run_session(sock):
         in_bed_now = (zone_status == 'in')
 
         if kpts_2d is not None:
-            for (a, b) in COCO_SKELETON:
-                if kpts_2d[a, 2] > 0.3 and kpts_2d[b, 2] > 0.3:
-                    pa = (int(kpts_2d[a, 0]), int(kpts_2d[a, 1]))
-                    pb = (int(kpts_2d[b, 0]), int(kpts_2d[b, 1]))
-                    cv2.line(display_img, pa, pb, (0, 255, 0), 2)
-            for j in range(17):
-                if kpts_2d[j, 2] > 0.3:
-                    p = (int(kpts_2d[j, 0]), int(kpts_2d[j, 1]))
-                    cv2.circle(display_img, p, 4, (0, 0, 255), -1)
+            if not HEADLESS:
+                for (a, b) in COCO_SKELETON:
+                    if kpts_2d[a, 2] > 0.3 and kpts_2d[b, 2] > 0.3:
+                        pa = (int(kpts_2d[a, 0]), int(kpts_2d[a, 1]))
+                        pb = (int(kpts_2d[b, 0]), int(kpts_2d[b, 1]))
+                        cv2.line(display_img, pa, pb, (0, 255, 0), 2)
+                for j in range(17):
+                    if kpts_2d[j, 2] > 0.3:
+                        p = (int(kpts_2d[j, 0]), int(kpts_2d[j, 1]))
+                        cv2.circle(display_img, p, 4, (0, 0, 255), -1)
 
             coco_xyz = np.zeros((17, 3), dtype=np.float32)
             valid = True
@@ -492,23 +501,32 @@ def run_session(sock):
             display_fps = fps_counter / (now - fps_t0)
             fps_counter = 0
             fps_t0 = now
+            # 헤드리스(무인) 하트비트: 30초마다 살아있음/FPS/zone 로그(모니터링용)
+            if HEADLESS and (now - last_heartbeat) >= HEARTBEAT_INTERVAL:
+                last_heartbeat = now
+                log(f"[heartbeat] FPS={display_fps:.1f} zone={zone_status} buf={len(buffer)}")
 
-        status_labels = {'in': 'IN-ZONE', 'partial': 'PARTIAL-EXIT', 'out': 'OUT-OF-ZONE/NO PERSON'}
-        status = status_labels[zone_status]
-        cv2.putText(display_img, f"FPS={display_fps:.1f}  {status}",
-                    (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
-        cv2.putText(display_img, last_result_text, (10, 55),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, last_result_color, 2)
+        if not HEADLESS:
+            status_labels = {'in': 'IN-ZONE', 'partial': 'PARTIAL-EXIT', 'out': 'OUT-OF-ZONE/NO PERSON'}
+            status = status_labels[zone_status]
+            cv2.putText(display_img, f"FPS={display_fps:.1f}  {status}",
+                        (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
+            cv2.putText(display_img, last_result_text, (10, 55),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, last_result_color, 2)
 
-        cv2.imshow("Y-mas Realtime (IR + Zone + Smoothing)", display_img)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            return True   # 사용자 정상 종료
+            cv2.imshow("Y-mas Realtime (IR + Zone + Smoothing)", display_img)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                return True   # 사용자 정상 종료
 
 
 # ============================================================
 # 최상위 재시작 루프
 # ============================================================
-log("=== Y-mas 실시간 감지 시작 ('q' 키로 완전 종료) ===")
+def _close_windows():
+    if not HEADLESS:
+        cv2.destroyAllWindows()
+
+log(f"=== Y-mas 실시간 감지 시작 (headless={HEADLESS}) ===")
 
 try:
     while True:
@@ -516,7 +534,7 @@ try:
         try:
             user_quit = run_session(sock)
             sock.close()
-            cv2.destroyAllWindows()
+            _close_windows()
             if user_quit:
                 log("=== 사용자 종료 (q 키) -- 프로그램 종료 ===")
                 break
@@ -526,7 +544,7 @@ try:
                 sock.close()
             except Exception:
                 pass
-            cv2.destroyAllWindows()
+            _close_windows()
             time.sleep(RECONNECT_WAIT)
         except Exception as e:
             log(f"예상치 못한 오류: {e} -- {RECONNECT_WAIT}초 후 재시작")
@@ -534,11 +552,11 @@ try:
                 sock.close()
             except Exception:
                 pass
-            cv2.destroyAllWindows()
+            _close_windows()
             time.sleep(RECONNECT_WAIT)
 except KeyboardInterrupt:
     log("=== Ctrl+C로 종료 ===")
-    cv2.destroyAllWindows()
+    _close_windows()
 
 _log_file.close()
 sys.exit(0)
