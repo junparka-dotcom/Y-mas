@@ -1,12 +1,36 @@
+import os
 import socket
 import struct
 import time
 import json
 import sys
+from pathlib import Path
 import numpy as np
 import cv2
 import onnxruntime as ort
 from collections import deque
+
+# ============================================================
+# 경로 설정 (환경 독립적)
+# ------------------------------------------------------------
+# 기존 코드는 /home/y-mas/ 를 하드코딩했으나, 계정/홈 경로에 의존하지
+# 않도록 스크립트(edge/) 기준으로 자동 해석한다. 필요하면 환경변수로
+# override 할 수 있다:
+#   YMAS_POSE_ONNX   : YOLO11n-pose ONNX 경로 (기본 edge/yolo11n-pose.onnx)
+#   YMAS_FALL_ONNX   : v17 낙상 ONNX 경로     (기본 edge/ymas_v17.onnx)
+#   YMAS_BED_JSON    : bed_region.json 경로   (기본 edge/bed_region.json)
+#   YMAS_LOG_DIR     : 로그 디렉토리          (기본 edge/logs)
+# ============================================================
+EDGE_DIR = Path(__file__).resolve().parent
+
+def _resolve(env_key, default_name):
+    v = os.environ.get(env_key)
+    return Path(v) if v else (EDGE_DIR / default_name)
+
+POSE_ONNX_PATH = _resolve("YMAS_POSE_ONNX", "yolo11n-pose.onnx")
+FALL_ONNX_PATH = _resolve("YMAS_FALL_ONNX", "ymas_v17.onnx")
+BED_JSON_PATH  = _resolve("YMAS_BED_JSON",  "bed_region.json")
+LOG_DIR        = Path(os.environ.get("YMAS_LOG_DIR", str(EDGE_DIR / "logs")))
 
 # ============================================================
 # 학습 코드(ymas_v17.ipynb CELL 2/4/7)와 동일한 상수
@@ -40,7 +64,7 @@ EXIT_ALERT_HOLD = 2.0
 EXIT_TILT_THRESHOLD = 45.0
 
 RECONNECT_WAIT = 3.0        # 소켓 재연결 실패 시 대기 시간
-LOG_PATH = "/home/y-mas/logs/realtime.log"
+LOG_PATH = str(LOG_DIR / "realtime.log")
 
 PMEAN = np.array([3.3124001026153564, 3.160599946975708, 0.39250001311302185,
                   1.12909996509552, 33.05630111694336, 20.906299591064453,
@@ -61,8 +85,7 @@ PSTD = np.array([7.803500175476074, 5.543000221252441, 0.5598000288009644,
 TH_FALL = 0.75
 CLASS_NAMES = ['Normal', 'Risk', 'Fall']
 
-import os
-os.makedirs("/home/y-mas/logs", exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
 _log_file = open(LOG_PATH, "a")
 
 def log(msg):
@@ -73,7 +96,7 @@ def log(msg):
 
 
 try:
-    with open("/home/y-mas/bed_region.json") as f:
+    with open(BED_JSON_PATH) as f:
         BED = json.load(f)
     BED_POLY = np.array(BED["polygon_px"], dtype=np.int32)
     log(f"침대(구역) 영역 로드됨: {BED['polygon_px']}")
@@ -245,14 +268,31 @@ sess_opts = ort.SessionOptions()
 sess_opts.intra_op_num_threads = 6
 sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
-pose_session = ort.InferenceSession("/home/y-mas/yolo11n-pose.onnx",
+# ONNX Runtime 프로바이더: 가능하면 CUDA 사용, 없으면 CPU 폴백.
+# (Jetson 에서 CUDA 를 쓰려면 JetPack 용 onnxruntime-gpu wheel 이 필요하다.
+#  기본 PyPI onnxruntime 은 CPU only 이며 그 경우 자동으로 CPU 로 동작한다.)
+_avail = ort.get_available_providers()
+_providers = (["CUDAExecutionProvider", "CPUExecutionProvider"]
+              if "CUDAExecutionProvider" in _avail else ["CPUExecutionProvider"])
+
+for _p, _path in (("YOLO11n-pose", POSE_ONNX_PATH), ("v17 fall", FALL_ONNX_PATH)):
+    if not Path(_path).exists():
+        log(f"[치명] {_p} ONNX 모델을 찾을 수 없음: {_path}")
+        log("      export/배치 후 다시 실행하거나 YMAS_POSE_ONNX/YMAS_FALL_ONNX 로 경로를 지정하세요.")
+        sys.exit(1)
+
+log(f"ONNX Runtime providers: {_providers}")
+log(f"pose  ONNX: {POSE_ONNX_PATH}")
+log(f"fall  ONNX: {FALL_ONNX_PATH}")
+
+pose_session = ort.InferenceSession(str(POSE_ONNX_PATH),
                                      sess_options=sess_opts,
-                                     providers=["CPUExecutionProvider"])
+                                     providers=_providers)
 pose_input_name = pose_session.get_inputs()[0].name
 
-fall_session = ort.InferenceSession("/home/y-mas/ymas_v17.onnx",
+fall_session = ort.InferenceSession(str(FALL_ONNX_PATH),
                                      sess_options=sess_opts,
-                                     providers=["CPUExecutionProvider"])
+                                     providers=_providers)
 
 WINDOW_SECONDS = 3.0
 INFER_INTERVAL = 0.5
