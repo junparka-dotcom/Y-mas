@@ -2,8 +2,10 @@
 Description=Y-mas Tier2 - realtime fall detection (headless)
 Documentation=https://github.com/junparka-dotcom/Y-mas
 # 브리지가 뜬 뒤 시작. 브리지가 죽으면 함께 재시작.
-After=ymas-bridge.service
+After=ymas-bridge.service ymas-tier3.service
 Requires=ymas-bridge.service
+# Tier3 서버는 있으면 먼저 뜨도록 Wants(없어도 Tier2는 동작)
+Wants=ymas-tier3.service
 # 짧은 시간에 반복 실패해도 계속 재시도 (재시작 제한 해제) — [Unit] 섹션에 위치해야 함
 StartLimitIntervalSec=0
 
@@ -20,6 +22,11 @@ Environment=HOME=/home/ymas
 # 엔진 있으면 GPU(TensorRT), 없으면 onnxruntime 폴백은 코드가 자동 처리.
 # CPU 강제 비교가 필요하면 아래 주석 해제:
 # Environment=YMAS_FORCE_ONNX=1
+
+# Tier3(간호 스테이션) 연동: 낙상 확정 시 이 서버로 알림 POST.
+# 서버가 다른 PC면 그 IP로 변경(예: http://192.168.0.50:8000). 침대 ID도 지정.
+Environment=YMAS_TIER3_URL=http://localhost:8000
+Environment=YMAS_BED_ID=301-A
 
 # 브리지 소켓이 준비될 시간을 살짝 준 뒤 시작(코드에도 재연결 루프 있음)
 ExecStartPre=/bin/sleep 2

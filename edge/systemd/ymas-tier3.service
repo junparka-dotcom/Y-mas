@@ -1,0 +1,25 @@
+[Unit]
+Description=Y-mas Tier3 - nurse station alert server (FastAPI dashboard)
+Documentation=https://github.com/junparka-dotcom/Y-mas
+After=multi-user.target
+Wants=multi-user.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ymas
+Group=ymas
+WorkingDirectory=/home/ymas/Y-mas/tier3/server
+# pip --user(fastapi/uvicorn) 인식용 홈 지정
+Environment=HOME=/home/ymas
+# 서버 기동 (0.0.0.0:8000 → 같은 네트워크의 간호 스테이션 브라우저에서도 접속 가능)
+ExecStart=/usr/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 8000
+
+Restart=always
+RestartSec=3
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
