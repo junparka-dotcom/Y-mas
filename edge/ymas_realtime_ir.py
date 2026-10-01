@@ -1,12 +1,53 @@
+import os
 import socket
 import struct
 import time
 import json
 import sys
+from pathlib import Path
 import numpy as np
 import cv2
 import onnxruntime as ort
 from collections import deque
+
+# ============================================================
+# 경로 설정 (환경 독립적)
+# ------------------------------------------------------------
+# 기존 코드는 /home/y-mas/ 를 하드코딩했으나, 계정/홈 경로에 의존하지
+# 않도록 스크립트(edge/) 기준으로 자동 해석한다. 필요하면 환경변수로
+# override 할 수 있다:
+#   YMAS_POSE_ONNX   : YOLO11n-pose ONNX 경로 (기본 edge/yolo11n-pose.onnx)
+#   YMAS_FALL_ONNX   : v17 낙상 ONNX 경로     (기본 edge/ymas_v17.onnx)
+#   YMAS_BED_JSON    : bed_region.json 경로   (기본 edge/bed_region.json)
+#   YMAS_LOG_DIR     : 로그 디렉토리          (기본 edge/logs)
+# ============================================================
+EDGE_DIR = Path(__file__).resolve().parent
+
+def _resolve(env_key, default_name):
+    v = os.environ.get(env_key)
+    return Path(v) if v else (EDGE_DIR / default_name)
+
+POSE_ONNX_PATH = _resolve("YMAS_POSE_ONNX", "yolo11n-pose.onnx")
+FALL_ONNX_PATH = _resolve("YMAS_FALL_ONNX", "ymas_v17.onnx")
+BED_JSON_PATH  = _resolve("YMAS_BED_JSON",  "bed_region.json")
+LOG_DIR        = Path(os.environ.get("YMAS_LOG_DIR", str(EDGE_DIR / "logs")))
+
+# TensorRT 엔진 경로(있으면 GPU 우선, 없으면 onnxruntime CPU 폴백).
+POSE_ENGINE_PATH = _resolve("YMAS_POSE_ENGINE", "yolo11n-pose_fp16.engine")
+FALL_ENGINE_PATH = _resolve("YMAS_FALL_ENGINE", "ymas_v17_fp16.engine")
+# YMAS_FORCE_ONNX=1 이면 엔진 무시하고 강제로 onnxruntime(CPU) 사용(디버그/비교용).
+FORCE_ONNX = os.environ.get("YMAS_FORCE_ONNX", "0") == "1"
+# YMAS_HEADLESS=1 이면 GUI(cv2.imshow) 없이 로그/경보만 (systemd 무인 운영용).
+# DISPLAY 환경변수가 없으면(SSH/서비스) 자동으로 헤드리스로 강제한다.
+HEADLESS = os.environ.get("YMAS_HEADLESS", "0") == "1" or not os.environ.get("DISPLAY")
+
+# Tier 3(간호 스테이션 대시보드) 연동.
+# YMAS_TIER3_URL 이 설정됐을 때만 낙상 확정 시 FallEvent 를 서버로 POST 한다.
+# (미설정이면 Tier 2 단독 동작 — 기존과 동일). 전송은 비동기/비차단이라
+# 서버가 느리거나 죽어도 실시간 추론은 멈추지 않는다.
+TIER3_URL = os.environ.get("YMAS_TIER3_URL", "").rstrip("/")   # 예: http://localhost:8000
+BED_ID = os.environ.get("YMAS_BED_ID", "301-A")
+TIER3_COOLDOWN = float(os.environ.get("YMAS_TIER3_COOLDOWN", "10"))  # 낙상 알림 최소 간격(초)
 
 # ============================================================
 # 학습 코드(ymas_v17.ipynb CELL 2/4/7)와 동일한 상수
@@ -40,7 +81,7 @@ EXIT_ALERT_HOLD = 2.0
 EXIT_TILT_THRESHOLD = 45.0
 
 RECONNECT_WAIT = 3.0        # 소켓 재연결 실패 시 대기 시간
-LOG_PATH = "/home/y-mas/logs/realtime.log"
+LOG_PATH = str(LOG_DIR / "realtime.log")
 
 PMEAN = np.array([3.3124001026153564, 3.160599946975708, 0.39250001311302185,
                   1.12909996509552, 33.05630111694336, 20.906299591064453,
@@ -61,8 +102,7 @@ PSTD = np.array([7.803500175476074, 5.543000221252441, 0.5598000288009644,
 TH_FALL = 0.75
 CLASS_NAMES = ['Normal', 'Risk', 'Fall']
 
-import os
-os.makedirs("/home/y-mas/logs", exist_ok=True)
+os.makedirs(LOG_DIR, exist_ok=True)
 _log_file = open(LOG_PATH, "a")
 
 def log(msg):
@@ -72,8 +112,58 @@ def log(msg):
     _log_file.flush()
 
 
+# ============================================================
+# Tier 3 (간호 스테이션 대시보드) 전송
+# ------------------------------------------------------------
+# 낙상 확정 시 FallEvent(schema.py 호환 dict)를 Tier 3 서버 /ingest 로 POST.
+# - 비차단: 별도 스레드 + 짧은 타임아웃 → 실시간 루프를 막지 않음
+# - 쿨다운: TIER3_COOLDOWN 초 내 중복 알림 억제(0.5초마다 FALL 폭주 방지)
+# - 선택적: TIER3_URL 미설정이면 아무것도 안 함(Tier 2 단독 동작)
+# - 의존성 0: urllib(표준 라이브러리)만 사용
+# ============================================================
+import threading
+import urllib.request
+
+_last_tier3_sent = 0.0  # 마지막 전송 시각(쿨다운용)
+
+def _tier3_post(event: dict):
+    """백그라운드 스레드에서 실행: 짧은 타임아웃으로 POST, 실패는 로그만."""
+    try:
+        data = json.dumps(event).encode("utf-8")
+        req = urllib.request.Request(TIER3_URL + "/ingest", data=data,
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=2) as r:
+            r.read()
+    except Exception as e:
+        log(f"[tier3] 전송 실패(무시, 추론은 계속): {e}")
+
+def notify_tier3_fall(probs, tilt, zone_status, exit_tag):
+    """낙상 확정 시 호출. 쿨다운을 지키며 비동기로 Tier 3 에 알림."""
+    global _last_tier3_sent
+    if not TIER3_URL:
+        return
+    now = time.time()
+    if now - _last_tier3_sent < TIER3_COOLDOWN:
+        return
+    _last_tier3_sent = now
+    event = {
+        "bed_id": BED_ID,
+        "severity": "FALL",
+        "source": "tier2",
+        "reason": "vision",
+        "p_normal": float(probs[0]),
+        "p_risk": float(probs[1]),
+        "p_fall": float(probs[2]),
+        "tilt_final": float(tilt),
+        "zone_status": zone_status,
+        "exit_tag": exit_tag,
+    }
+    threading.Thread(target=_tier3_post, args=(event,), daemon=True).start()
+    log(f"[tier3] FALL 알림 전송 → {TIER3_URL} (bed={BED_ID}, P_fall={probs[2]:.2f})")
+
+
 try:
-    with open("/home/y-mas/bed_region.json") as f:
+    with open(BED_JSON_PATH) as f:
         BED = json.load(f)
     BED_POLY = np.array(BED["polygon_px"], dtype=np.int32)
     log(f"침대(구역) 영역 로드됨: {BED['polygon_px']}")
@@ -240,23 +330,73 @@ def yolo_preprocess(img, size=YOLO_SIZE):
 
 # ============================================================
 # 모델 로드 (한 번만)
+# ------------------------------------------------------------
+# 백엔드 선택 전략(모델별 독립):
+#   1) YMAS_FORCE_ONNX=1 이 아니고, TensorRT 엔진 파일이 있으며, trt_infer 임포트가
+#      되면 → GPU(TensorRT) 사용.
+#   2) 아니면 → onnxruntime(CPU 폴백) 사용.
+# 두 백엔드 모두 동일한 호출 규약을 제공하도록 얇은 래퍼로 감싼다:
+#   pose_run(blob)  -> np.ndarray  (YOLO output0, shape (1,56,N))
+#   fall_run(skel, phys) -> np.ndarray (logits, shape (3,))
+# 전처리/출력 파싱/상수(PMEAN/PSTD/TH_FALL)는 불변 — 추론 실행부만 백엔드에 위임.
 # ============================================================
 sess_opts = ort.SessionOptions()
 sess_opts.intra_op_num_threads = 6
 sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
 
-pose_session = ort.InferenceSession("/home/y-mas/yolo11n-pose.onnx",
-                                     sess_options=sess_opts,
-                                     providers=["CPUExecutionProvider"])
-pose_input_name = pose_session.get_inputs()[0].name
+_trt_ok = False
+if not FORCE_ONNX:
+    try:
+        from trt_infer import TRTModel
+        _trt_ok = True
+    except Exception as e:
+        log(f"TensorRT 헬퍼 임포트 실패({e}) → onnxruntime 폴백")
 
-fall_session = ort.InferenceSession("/home/y-mas/ymas_v17.onnx",
-                                     sess_options=sess_opts,
-                                     providers=["CPUExecutionProvider"])
+# ---- YOLO11n-pose ----
+if _trt_ok and Path(POSE_ENGINE_PATH).exists():
+    log(f"pose  backend: TensorRT  ({POSE_ENGINE_PATH})")
+    _pose_trt = TRTModel(str(POSE_ENGINE_PATH))
+    _pose_in = _pose_trt.input_names[0]      # 'images'
+    def pose_run(blob):
+        return _pose_trt.run({_pose_in: blob})[0]
+else:
+    if not Path(POSE_ONNX_PATH).exists():
+        log(f"[치명] YOLO11n-pose 모델 없음(엔진/ONNX 모두): {POSE_ENGINE_PATH} / {POSE_ONNX_PATH}")
+        sys.exit(1)
+    _avail = ort.get_available_providers()
+    _providers = (["CUDAExecutionProvider", "CPUExecutionProvider"]
+                  if "CUDAExecutionProvider" in _avail else ["CPUExecutionProvider"])
+    log(f"pose  backend: onnxruntime {_providers}  ({POSE_ONNX_PATH})")
+    _pose_session = ort.InferenceSession(str(POSE_ONNX_PATH),
+                                         sess_options=sess_opts, providers=_providers)
+    _pose_in = _pose_session.get_inputs()[0].name
+    def pose_run(blob):
+        return _pose_session.run(None, {_pose_in: blob})[0]
+
+# ---- ST-GCN v17 ----
+if _trt_ok and Path(FALL_ENGINE_PATH).exists():
+    log(f"fall  backend: TensorRT  ({FALL_ENGINE_PATH})")
+    _fall_trt = TRTModel(str(FALL_ENGINE_PATH))
+    def fall_run(skel_input, phys_input):
+        # 엔진 입력 텐서 이름: 'skeleton', 'physics' / 출력: 'logits'
+        return _fall_trt.run({"skeleton": skel_input, "physics": phys_input})[0][0]
+else:
+    if not Path(FALL_ONNX_PATH).exists():
+        log(f"[치명] v17 낙상 모델 없음(엔진/ONNX 모두): {FALL_ENGINE_PATH} / {FALL_ONNX_PATH}")
+        sys.exit(1)
+    _avail = ort.get_available_providers()
+    _providers = (["CUDAExecutionProvider", "CPUExecutionProvider"]
+                  if "CUDAExecutionProvider" in _avail else ["CPUExecutionProvider"])
+    log(f"fall  backend: onnxruntime {_providers}  ({FALL_ONNX_PATH})")
+    _fall_session = ort.InferenceSession(str(FALL_ONNX_PATH),
+                                         sess_options=sess_opts, providers=_providers)
+    def fall_run(skel_input, phys_input):
+        return _fall_session.run(None, {"skeleton": skel_input, "physics": phys_input})[0][0]
 
 WINDOW_SECONDS = 3.0
 INFER_INTERVAL = 0.5
 MIN_FRAMES = 15
+HEARTBEAT_INTERVAL = 30.0   # 헤드리스 모드에서 살아있음 로그 주기(초)
 
 
 def connect_socket():
@@ -292,6 +432,7 @@ def run_session(sock):
     fps_t0 = time.time()
     fps_counter = 0
     display_fps = 0.0
+    last_heartbeat = 0.0
 
     while True:
         header = recv_exact(sock, HEADER_SIZE)
@@ -303,18 +444,21 @@ def run_session(sock):
         depth_arr = np.frombuffer(depth_bytes, dtype=np.uint16).reshape((h, w))
 
         ir_8u = cv2.normalize(ir_arr, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-        ir_3ch = cv2.cvtColor(ir_8u, cv2.COLOR_GRAY2BGR)
-        display_img = ir_3ch.copy()
+        ir_3ch = cv2.cvtColor(ir_8u, cv2.COLOR_GRAY2BGR)   # YOLO 입력용(헤드리스에서도 필요)
 
-        if BED_POLY is not None:
-            cv2.polylines(display_img, [BED_POLY], True, (255, 128, 0), 2)
+        if HEADLESS:
+            display_img = None                              # GUI 미사용 → 렌더 캔버스 불필요
+        else:
+            display_img = ir_3ch.copy()
+            if BED_POLY is not None:
+                cv2.polylines(display_img, [BED_POLY], True, (255, 128, 0), 2)
 
         now = time.time()
         frame_count += 1
 
         if frame_count % YOLO_EVERY_N == 0:
             blob, scale = yolo_preprocess(ir_3ch)
-            output = pose_session.run(None, {pose_input_name: blob})[0]
+            output = pose_run(blob)
             preds = output[0].T
             dets = preds[preds[:, 4] > YOLO_CONF]
             raw_kpts_2d = select_person_in_bed(dets, scale)
@@ -330,15 +474,16 @@ def run_session(sock):
         in_bed_now = (zone_status == 'in')
 
         if kpts_2d is not None:
-            for (a, b) in COCO_SKELETON:
-                if kpts_2d[a, 2] > 0.3 and kpts_2d[b, 2] > 0.3:
-                    pa = (int(kpts_2d[a, 0]), int(kpts_2d[a, 1]))
-                    pb = (int(kpts_2d[b, 0]), int(kpts_2d[b, 1]))
-                    cv2.line(display_img, pa, pb, (0, 255, 0), 2)
-            for j in range(17):
-                if kpts_2d[j, 2] > 0.3:
-                    p = (int(kpts_2d[j, 0]), int(kpts_2d[j, 1]))
-                    cv2.circle(display_img, p, 4, (0, 0, 255), -1)
+            if not HEADLESS:
+                for (a, b) in COCO_SKELETON:
+                    if kpts_2d[a, 2] > 0.3 and kpts_2d[b, 2] > 0.3:
+                        pa = (int(kpts_2d[a, 0]), int(kpts_2d[a, 1]))
+                        pb = (int(kpts_2d[b, 0]), int(kpts_2d[b, 1]))
+                        cv2.line(display_img, pa, pb, (0, 255, 0), 2)
+                for j in range(17):
+                    if kpts_2d[j, 2] > 0.3:
+                        p = (int(kpts_2d[j, 0]), int(kpts_2d[j, 1]))
+                        cv2.circle(display_img, p, 4, (0, 0, 255), -1)
 
             coco_xyz = np.zeros((17, 3), dtype=np.float32)
             valid = True
@@ -387,7 +532,7 @@ def run_session(sock):
             skel_input = skel_stream[None].astype(np.float32)
             phys_input = phys_norm[None].astype(np.float32)
 
-            logits = fall_session.run(None, {"skeleton": skel_input, "physics": phys_input})[0][0]
+            logits = fall_run(skel_input, phys_input)
             probs = np.exp(logits) / np.exp(logits).sum()
 
             pred_class = 2 if probs[2] >= TH_FALL else int(np.argmax(probs[:2]))
@@ -409,28 +554,45 @@ def run_session(sock):
                 f"P(Normal)={probs[0]:.2f} P(Risk)={probs[1]:.2f} P(Fall)={probs[2]:.2f} "
                 f"-> {CLASS_NAMES[pred_class]}  {tag}")
 
+            # 낙상 확정 시 Tier 3(간호 스테이션)로 알림 (비동기/쿨다운/선택적)
+            if pred_class == 2:
+                notify_tier3_fall(probs, phys[5], zone_status, exit_tag)
+
         fps_counter += 1
         if now - fps_t0 >= 1.0:
             display_fps = fps_counter / (now - fps_t0)
             fps_counter = 0
             fps_t0 = now
+            # 헤드리스(무인) 하트비트: 30초마다 살아있음/FPS/zone 로그(모니터링용)
+            if HEADLESS and (now - last_heartbeat) >= HEARTBEAT_INTERVAL:
+                last_heartbeat = now
+                log(f"[heartbeat] FPS={display_fps:.1f} zone={zone_status} buf={len(buffer)}")
 
-        status_labels = {'in': 'IN-ZONE', 'partial': 'PARTIAL-EXIT', 'out': 'OUT-OF-ZONE/NO PERSON'}
-        status = status_labels[zone_status]
-        cv2.putText(display_img, f"FPS={display_fps:.1f}  {status}",
-                    (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
-        cv2.putText(display_img, last_result_text, (10, 55),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, last_result_color, 2)
+        if not HEADLESS:
+            status_labels = {'in': 'IN-ZONE', 'partial': 'PARTIAL-EXIT', 'out': 'OUT-OF-ZONE/NO PERSON'}
+            status = status_labels[zone_status]
+            cv2.putText(display_img, f"FPS={display_fps:.1f}  {status}",
+                        (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 1)
+            cv2.putText(display_img, last_result_text, (10, 55),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, last_result_color, 2)
 
-        cv2.imshow("Y-mas Realtime (IR + Zone + Smoothing)", display_img)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            return True   # 사용자 정상 종료
+            cv2.imshow("Y-mas Realtime (IR + Zone + Smoothing)", display_img)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                return True   # 사용자 정상 종료
 
 
 # ============================================================
 # 최상위 재시작 루프
 # ============================================================
-log("=== Y-mas 실시간 감지 시작 ('q' 키로 완전 종료) ===")
+def _close_windows():
+    if not HEADLESS:
+        cv2.destroyAllWindows()
+
+log(f"=== Y-mas 실시간 감지 시작 (headless={HEADLESS}) ===")
+if TIER3_URL:
+    log(f"Tier3 연동: {TIER3_URL} (bed={BED_ID}, cooldown={TIER3_COOLDOWN}s)")
+else:
+    log("Tier3 연동: 비활성(YMAS_TIER3_URL 미설정) — Tier2 단독 동작")
 
 try:
     while True:
@@ -438,7 +600,7 @@ try:
         try:
             user_quit = run_session(sock)
             sock.close()
-            cv2.destroyAllWindows()
+            _close_windows()
             if user_quit:
                 log("=== 사용자 종료 (q 키) -- 프로그램 종료 ===")
                 break
@@ -448,7 +610,7 @@ try:
                 sock.close()
             except Exception:
                 pass
-            cv2.destroyAllWindows()
+            _close_windows()
             time.sleep(RECONNECT_WAIT)
         except Exception as e:
             log(f"예상치 못한 오류: {e} -- {RECONNECT_WAIT}초 후 재시작")
@@ -456,11 +618,11 @@ try:
                 sock.close()
             except Exception:
                 pass
-            cv2.destroyAllWindows()
+            _close_windows()
             time.sleep(RECONNECT_WAIT)
 except KeyboardInterrupt:
     log("=== Ctrl+C로 종료 ===")
-    cv2.destroyAllWindows()
+    _close_windows()
 
 _log_file.close()
 sys.exit(0)

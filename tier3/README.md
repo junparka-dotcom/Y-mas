@@ -55,20 +55,23 @@ Tier 2 실물(`edge/ymas_realtime_ir.py`)과 Tier 1 펌웨어가 실제로 가�
 | `total_kg`, `cog_x`, `cog_y`, `edge_ratio` | Tier1 | 총중량 / 무게중심 / 이탈도 |
 | `event_id`, `acknowledged`, `ack_ts` | 서버 | 서버 부여 ID / 확인 여부·시각 |
 
-## 실제 Tier 2 연결 (나중에)
+## 실제 Tier 2 연결 (완료 ✅)
 
-Tier 2 실물은 낙상 확정 시 `FallEvent` 스키마로 서버 `/ingest`에 POST 하거나
-`/ws/ingest`로 push 하면 된다. `edge/ymas_realtime_ir.py`의 낙상 판정
-(`pred_class == 2`) 지점에서 아래처럼 호출:
+`edge/ymas_realtime_ir.py` 가 낙상 확정(`pred_class == 2`) 시 `FallEvent` 를
+서버 `/ingest` 로 POST 하도록 **연동 완료**. 비차단(데몬 스레드+2초 타임아웃) +
+쿨다운(기본 10초)으로 실시간 루프에 영향 없이 동작한다.
 
-```python
-import urllib.request, json
-ev = {"bed_id": "301-A", "severity": "FALL", "source": "tier2",
-      "reason": "vision", "p_fall": float(probs[2]), "tilt_final": float(phys[5])}
-urllib.request.urlopen(urllib.request.Request(
-    "http://<서버IP>:8000/ingest",
-    data=json.dumps(ev).encode(), headers={"Content-Type":"application/json"}))
+환경변수로 제어(미설정이면 Tier 2 단독 동작):
+- `YMAS_TIER3_URL`  — 알림 서버 주소 (예: `http://localhost:8000`)
+- `YMAS_BED_ID`     — 침대 ID (기본 `301-A`)
+- `YMAS_TIER3_COOLDOWN` — 낙상 알림 최소 간격 초 (기본 10)
+
+실행(수동):
+```bash
+cd ~/Y-mas/edge && YMAS_TIER3_URL=http://localhost:8000 python3 ymas_realtime_ir.py
 ```
+systemd 로 함께 운영: `edge/systemd/`(ymas-tier3.service) + `install_services.sh`.
+자세한 절차는 `edge/DEPLOY_AGX_ORIN.md` 9단계 참고.
 
 ## 검증 완료 (로컬 E2E, 하드웨어 없음)
 
