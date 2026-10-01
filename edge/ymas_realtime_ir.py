@@ -41,6 +41,14 @@ FORCE_ONNX = os.environ.get("YMAS_FORCE_ONNX", "0") == "1"
 # DISPLAY 환경변수가 없으면(SSH/서비스) 자동으로 헤드리스로 강제한다.
 HEADLESS = os.environ.get("YMAS_HEADLESS", "0") == "1" or not os.environ.get("DISPLAY")
 
+# Tier 3(간호 스테이션 대시보드) 연동.
+# YMAS_TIER3_URL 이 설정됐을 때만 낙상 확정 시 FallEvent 를 서버로 POST 한다.
+# (미설정이면 Tier 2 단독 동작 — 기존과 동일). 전송은 비동기/비차단이라
+# 서버가 느리거나 죽어도 실시간 추론은 멈추지 않는다.
+TIER3_URL = os.environ.get("YMAS_TIER3_URL", "").rstrip("/")   # 예: http://localhost:8000
+BED_ID = os.environ.get("YMAS_BED_ID", "301-A")
+TIER3_COOLDOWN = float(os.environ.get("YMAS_TIER3_COOLDOWN", "10"))  # 낙상 알림 최소 간격(초)
+
 # ============================================================
 # 학습 코드(ymas_v17.ipynb CELL 2/4/7)와 동일한 상수
 # ============================================================
@@ -102,6 +110,56 @@ def log(msg):
     print(line)
     _log_file.write(line + "\n")
     _log_file.flush()
+
+
+# ============================================================
+# Tier 3 (간호 스테이션 대시보드) 전송
+# ------------------------------------------------------------
+# 낙상 확정 시 FallEvent(schema.py 호환 dict)를 Tier 3 서버 /ingest 로 POST.
+# - 비차단: 별도 스레드 + 짧은 타임아웃 → 실시간 루프를 막지 않음
+# - 쿨다운: TIER3_COOLDOWN 초 내 중복 알림 억제(0.5초마다 FALL 폭주 방지)
+# - 선택적: TIER3_URL 미설정이면 아무것도 안 함(Tier 2 단독 동작)
+# - 의존성 0: urllib(표준 라이브러리)만 사용
+# ============================================================
+import threading
+import urllib.request
+
+_last_tier3_sent = 0.0  # 마지막 전송 시각(쿨다운용)
+
+def _tier3_post(event: dict):
+    """백그라운드 스레드에서 실행: 짧은 타임아웃으로 POST, 실패는 로그만."""
+    try:
+        data = json.dumps(event).encode("utf-8")
+        req = urllib.request.Request(TIER3_URL + "/ingest", data=data,
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=2) as r:
+            r.read()
+    except Exception as e:
+        log(f"[tier3] 전송 실패(무시, 추론은 계속): {e}")
+
+def notify_tier3_fall(probs, tilt, zone_status, exit_tag):
+    """낙상 확정 시 호출. 쿨다운을 지키며 비동기로 Tier 3 에 알림."""
+    global _last_tier3_sent
+    if not TIER3_URL:
+        return
+    now = time.time()
+    if now - _last_tier3_sent < TIER3_COOLDOWN:
+        return
+    _last_tier3_sent = now
+    event = {
+        "bed_id": BED_ID,
+        "severity": "FALL",
+        "source": "tier2",
+        "reason": "vision",
+        "p_normal": float(probs[0]),
+        "p_risk": float(probs[1]),
+        "p_fall": float(probs[2]),
+        "tilt_final": float(tilt),
+        "zone_status": zone_status,
+        "exit_tag": exit_tag,
+    }
+    threading.Thread(target=_tier3_post, args=(event,), daemon=True).start()
+    log(f"[tier3] FALL 알림 전송 → {TIER3_URL} (bed={BED_ID}, P_fall={probs[2]:.2f})")
 
 
 try:
@@ -496,6 +554,10 @@ def run_session(sock):
                 f"P(Normal)={probs[0]:.2f} P(Risk)={probs[1]:.2f} P(Fall)={probs[2]:.2f} "
                 f"-> {CLASS_NAMES[pred_class]}  {tag}")
 
+            # 낙상 확정 시 Tier 3(간호 스테이션)로 알림 (비동기/쿨다운/선택적)
+            if pred_class == 2:
+                notify_tier3_fall(probs, phys[5], zone_status, exit_tag)
+
         fps_counter += 1
         if now - fps_t0 >= 1.0:
             display_fps = fps_counter / (now - fps_t0)
@@ -527,6 +589,10 @@ def _close_windows():
         cv2.destroyAllWindows()
 
 log(f"=== Y-mas 실시간 감지 시작 (headless={HEADLESS}) ===")
+if TIER3_URL:
+    log(f"Tier3 연동: {TIER3_URL} (bed={BED_ID}, cooldown={TIER3_COOLDOWN}s)")
+else:
+    log("Tier3 연동: 비활성(YMAS_TIER3_URL 미설정) — Tier2 단독 동작")
 
 try:
     while True:
