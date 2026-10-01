@@ -288,6 +288,56 @@ journalctl -u ymas-realtime -n 20               # 판정/하트비트 로그 확
 
 ---
 
+## 9. Tier 3 연동 — 간호 스테이션 대시보드 알림
+
+Tier 2(이 보드)가 낙상을 확정하면 Tier 3 알림 서버(`tier3/`)로 `FallEvent` 를
+POST → 간호 스테이션 브라우저 대시보드에 **실시간 빨강 경보**가 뜬다.
+
+```
+[ymas_realtime_ir.py] --낙상 확정(POST /ingest)--> [Tier3 FastAPI :8000] --WS--> [대시보드 브라우저]
+```
+
+### 9-1. 동작 방식 (코드)
+`ymas_realtime_ir.py` 는 `YMAS_TIER3_URL` 이 설정됐을 때만 낙상(`pred_class==2`)
+시 알림을 보낸다. 미설정이면 Tier 2 단독 동작(기존과 동일).
+- **비차단**: 별도 데몬 스레드 + 2초 타임아웃 → 서버가 느리거나 죽어도 추론은 계속
+- **쿨다운**: `YMAS_TIER3_COOLDOWN`(기본 10초)로 FALL 알림 폭주 방지
+- 환경변수: `YMAS_TIER3_URL`(예: `http://localhost:8000`), `YMAS_BED_ID`(기본 `301-A`)
+
+### 9-2. 서버 의존성 설치
+```bash
+pip install --user -r ~/Y-mas/tier3/requirements-tier3.txt   # fastapi, uvicorn
+```
+
+### 9-3. systemd 로 함께 운영 (8단계에 포함됨)
+`install_services.sh` 는 Tier3 서버(`ymas-tier3.service`)도 함께 설치하며,
+`ymas-realtime.service` 에 `YMAS_TIER3_URL=http://localhost:8000` 이 설정돼 있다.
+8단계 설치를 하면 bridge + tier3 + realtime 3개가 함께 뜬다.
+```bash
+cd ~/Y-mas/edge/systemd && sudo bash install_services.sh
+# 대시보드:  http://localhost:8000  (오린 로컬) 또는 http://<오린IP>:8000 (간호 스테이션 PC)
+journalctl -u ymas-realtime -f    # 낙상 시 [tier3] FALL 알림 전송 로그 확인
+journalctl -u ymas-tier3 -f       # 서버 수신 로그
+```
+
+### 9-4. 수동 실행(테스트용, systemd 없이)
+```bash
+# 터미널 1: Tier3 서버
+cd ~/Y-mas/tier3/server && python3 -m uvicorn app:app --host 0.0.0.0 --port 8000
+# 터미널 2: 브리지
+cd ~/Y-mas/edge/bridges && ./ir_depth_bridge
+# 터미널 3: 실시간 추론 (Tier3 전송 켜기)
+cd ~/Y-mas/edge && YMAS_TIER3_URL=http://localhost:8000 YMAS_BED_ID=301-A python3 ymas_realtime_ir.py
+```
+하드웨어 없이 대시보드만 먼저 보려면: `python3 ~/Y-mas/tier3/mock_tier2.py --scenario fall`
+
+### 9-5. 서버를 별도 간호 스테이션 PC 에 둘 때
+Tier3 서버를 다른 PC 에서 돌리면, `ymas-realtime.service` 의
+`YMAS_TIER3_URL` 을 그 PC IP 로 바꾼다(예: `http://192.168.0.50:8000`).
+서버는 `--host 0.0.0.0` 이라 같은 네트워크면 브라우저로 접속 가능.
+
+---
+
 ## 트러블슈팅
 | 증상 | 원인/해결 |
 |---|---|
@@ -308,3 +358,7 @@ journalctl -u ymas-realtime -n 20               # 판정/하트비트 로그 확
 | 서비스에서 cuda-python/onnxruntime 못 찾음 | pip `--user` 설치라 `HOME=/home/ymas` 가 유닛에 설정돼 `~/.local` 인식(8-2) |
 | 서비스 계속 재시작 반복 | `journalctl -u ymas-realtime -n 50` 로 원인 확인. 모델/엔진 파일 존재 여부부터 |
 | 재부팅 후 안 뜸 | `systemctl is-enabled ymas-bridge ymas-realtime` 확인. 아니면 `enable`(8-2) |
+| 대시보드에 낙상 안 뜸 | realtime 로그에 `[tier3] FALL 알림 전송` 뜨는지 확인. 안 뜨면 `YMAS_TIER3_URL` 미설정 |
+| `[tier3] 전송 실패` 로그 | Tier3 서버 미기동/방화벽. `journalctl -u ymas-tier3`, `curl localhost:8000/healthz` |
+| ymas-tier3 안 뜸 | fastapi/uvicorn 미설치. `pip install --user -r ~/Y-mas/tier3/requirements-tier3.txt`(9-2) |
+| 다른 PC 에서 대시보드 접속 안 됨 | 서버는 `0.0.0.0:8000`. 오린 방화벽/네트워크 확인, URL은 오린 IP(192.168.0.9) |
