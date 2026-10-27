@@ -318,46 +318,48 @@
         <div class="card">
           <span class="cap">하드웨어 구성 &amp; 설치 개념</span>
           <div class="cont">
-            <svg class="bed" viewBox="0 0 560 340" preserveAspectRatio="xMidYMid meet">
+            <svg class="bed" viewBox="0 0 560 390" preserveAspectRatio="xMidYMid meet">
+              <!-- 침대 제목 (맨 위, 단독 줄) -->
+              <text x="280" y="22" font-size="18" text-anchor="middle" fill="#3f1d64" font-weight="800">병실 침대 (레일 플랫폼 위에 안착)</text>
+
               <!-- 침대 상판 -->
-              <rect x="70" y="70" width="420" height="200" rx="14" fill="#efe7f8" stroke="#7e57c2" stroke-width="3"/>
-              <rect x="70" y="70" width="110" height="200" rx="14" fill="#e3d6f5" stroke="none"/>
-              <text x="125" y="175" font-size="17" text-anchor="middle" fill="#5b2a86" font-weight="700">베개</text>
-              <text x="335" y="55" font-size="18" text-anchor="middle" fill="#3f1d64" font-weight="800">병실 침대 (레일 플랫폼 위에 안착)</text>
+              <rect x="70" y="112" width="420" height="200" rx="14" fill="#efe7f8" stroke="#7e57c2" stroke-width="3"/>
+              <rect x="70" y="112" width="110" height="200" rx="14" fill="#e3d6f5" stroke="none"/>
+              <text x="125" y="217" font-size="17" text-anchor="middle" fill="#5b2a86" font-weight="700">베개</text>
 
               <!-- 환자 무게중심 -->
-              <circle cx="330" cy="170" r="16" fill="#8e24aa" opacity="0.85"/>
-              <text x="330" y="176" font-size="15" text-anchor="middle" fill="#fff" font-weight="800">COG</text>
-              <text x="330" y="205" font-size="14" text-anchor="middle" fill="#6a1b9a">무게중심</text>
+              <circle cx="330" cy="212" r="16" fill="#8e24aa" opacity="0.85"/>
+              <text x="330" y="218" font-size="15" text-anchor="middle" fill="#fff" font-weight="800">COG</text>
+              <text x="330" y="247" font-size="14" text-anchor="middle" fill="#6a1b9a">무게중심</text>
 
               <!-- 4개 로드셀 (모서리) -->
               <g font-size="15" font-weight="800" text-anchor="middle">
-                <rect x="78" y="78" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
-                <text x="105" y="98" fill="#bf360c">FL</text>
-                <rect x="428" y="78" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
-                <text x="455" y="98" fill="#bf360c">FR</text>
-                <rect x="78" y="232" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
-                <text x="105" y="252" fill="#bf360c">RL</text>
-                <rect x="428" y="232" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
-                <text x="455" y="252" fill="#bf360c">RR</text>
+                <rect x="78" y="120" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
+                <text x="105" y="140" fill="#bf360c">FL</text>
+                <rect x="428" y="120" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
+                <text x="455" y="140" fill="#bf360c">FR</text>
+                <rect x="78" y="274" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
+                <text x="105" y="294" fill="#bf360c">RL</text>
+                <rect x="428" y="274" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
+                <text x="455" y="294" fill="#bf360c">RR</text>
               </g>
 
               <!-- 신호선 -->
               <g stroke="#e65100" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.7">
-                <line x1="105" y1="108" x2="280" y2="310"/>
-                <line x1="455" y1="108" x2="280" y2="310"/>
-                <line x1="105" y1="232" x2="280" y2="310"/>
-                <line x1="455" y1="232" x2="280" y2="310"/>
+                <line x1="105" y1="150" x2="280" y2="352"/>
+                <line x1="455" y1="150" x2="280" y2="352"/>
+                <line x1="105" y1="274" x2="280" y2="352"/>
+                <line x1="455" y1="274" x2="280" y2="352"/>
               </g>
 
               <!-- MCU + 엣지 -->
-              <rect x="210" y="300" width="140" height="34" rx="6" fill="#5b2a86"/>
-              <text x="280" y="322" font-size="15" text-anchor="middle" fill="#fff" font-weight="800">HX711×4 → ESP32</text>
+              <rect x="210" y="342" width="140" height="34" rx="6" fill="#5b2a86"/>
+              <text x="280" y="364" font-size="15" text-anchor="middle" fill="#fff" font-weight="800">HX711×4 → ESP32</text>
 
-              <!-- 카메라 -->
-              <rect x="250" y="12" width="160" height="28" rx="6" fill="#1b5e20"/>
-              <text x="330" y="31" font-size="14" text-anchor="middle" fill="#fff" font-weight="700">적외선 ToF 카메라 (천장)</text>
-              <line x1="330" y1="40" x2="330" y2="150" stroke="#2e7d32" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.7"/>
+              <!-- 카메라 (제목 아래, 침대 상단 사이) -->
+              <rect x="200" y="44" width="160" height="28" rx="6" fill="#1b5e20"/>
+              <text x="280" y="63" font-size="14" text-anchor="middle" fill="#fff" font-weight="700">적외선 ToF 카메라 (천장)</text>
+              <line x1="280" y1="72" x2="310" y2="196" stroke="#2e7d32" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.7"/>
             </svg>
             <p class="foot">그림 3. 침대 네 모서리의 로드셀이 하중을 재 무게중심(COG)을 계산하고, 천장 적외선 카메라가 필요 시 자세를 확인한다. 환자 신체에 어떤 장치도 부착하지 않는다.</p>
             <ul>
