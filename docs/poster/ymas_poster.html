@@ -103,13 +103,13 @@
 
   /* ===== 2단 그리드 ===== */
   .grid{ display:grid; grid-template-columns:1fr 1fr; gap:16mm; flex:1; }
-  .colA,.colB{ display:flex; flex-direction:column; gap:16mm; }
+  .colA,.colB{ display:flex; flex-direction:column; gap:9mm; }
   .card{ display:flex; flex-direction:column; }
 
   /* 기능 박스 */
-  .feat{ display:flex; flex-direction:column; gap:4mm; margin-top:2mm; }
+  .feat{ display:flex; flex-direction:column; gap:3mm; margin-top:1mm; }
   .feat .f{ background:var(--soft); border-left:4mm solid var(--purple-l);
-    border-radius:0 2mm 2mm 0; padding:4mm 6mm; font-size:28px; line-height:1.45; }
+    border-radius:0 2mm 2mm 0; padding:3mm 5mm; font-size:25px; line-height:1.4; }
   .feat .f b{ display:inline-block; color:var(--purple); min-width:0; margin-right:3mm; }
   table.hw{ font-size:25px; margin-top:4mm; }
   table.hw td.l{ font-size:24px; }
@@ -118,20 +118,20 @@
   .card .cap{
     display:inline-block;
     background:linear-gradient(90deg,var(--purple),var(--purple-l));
-    color:#fff; font-weight:800; font-size:34px;
-    padding:4mm 10mm; border-radius:2mm 2mm 0 0;
+    color:#fff; font-weight:800; font-size:31px;
+    padding:3mm 9mm; border-radius:2mm 2mm 0 0;
     letter-spacing:.5px;
   }
   .card .cont{
     border:1.5px solid var(--line); border-top:3px solid var(--purple);
     border-radius:0 2mm 2mm 2mm;
-    padding:8mm 9mm; font-size:30px; line-height:1.55; background:#fff;
+    padding:6mm 7mm; font-size:27px; line-height:1.45; background:#fff;
   }
-  .card .cont p{ margin:0 0 5mm 0; }
+  .card .cont p{ margin:0 0 3.5mm 0; }
   .card .cont b{ color:var(--purple-d); }
-  .card .cont ul{ margin:0 0 5mm 0; padding-left:9mm; }
-  .card .cont li{ margin-bottom:4mm; }
-  .foot{ font-size:23px; color:#8a7a9c; }
+  .card .cont ul{ margin:0 0 3mm 0; padding-left:8mm; }
+  .card .cont li{ margin-bottom:2.5mm; }
+  .foot{ font-size:21px; color:#8a7a9c; margin:1mm 0 2mm; }
 
   .lead{ color:var(--purple-d); font-weight:800; }
 
@@ -163,14 +163,29 @@
   tbody tr:nth-child(even){ background:var(--soft); }
   td.l{ text-align:left; }
 
+  /* Tier2 파이프라인 */
+  .pipe{ display:flex; align-items:center; justify-content:center; gap:2mm; flex-wrap:wrap; margin:3mm 0 1mm; }
+  .pipe .pt{ background:#eafaef; border:2px solid #2e7d32; color:#1b5e20;
+    border-radius:2mm; padding:3mm 3mm; font-size:21px; font-weight:800; text-align:center; line-height:1.3; min-width:42mm; }
+  .pipe .pt.hl{ background:#f3edfa; border-color:var(--purple); color:var(--purple-d); }
+  .pipe .pa{ color:#2e7d32; font-size:30px; font-weight:900; }
+
+  /* 데이터 표 */
+  table.data th, table.data td{ font-size:23px; }
+  table.data td.l{ text-align:left; }
+
   /* 설치 개념도 */
   svg.bed{ width:100%; height:auto; max-height:150mm; display:block; margin:2mm 0 3mm; }
 
+  /* 플랫폼 스크린샷 */
+  img.shot{ width:100%; height:auto; display:block; border:2px solid var(--line);
+    border-radius:3mm; margin:3mm 0 2mm; box-shadow:0 1mm 4mm rgba(13,0,40,.15); }
+
   /* 로드맵 */
-  .road{ display:flex; flex-direction:column; gap:5mm; }
-  .road .step{ padding:5mm 6mm; border-radius:2mm; font-size:27px; line-height:1.45;
-    background:var(--soft); border-left:5mm solid var(--purple-l); }
-  .road .step b{ display:block; color:var(--purple-d); margin-bottom:1.5mm; font-size:28px; }
+  .road{ display:flex; flex-direction:column; gap:3.5mm; }
+  .road .step{ padding:3.5mm 5mm; border-radius:2mm; font-size:24px; line-height:1.4;
+    background:var(--soft); border-left:4mm solid var(--purple-l); }
+  .road .step b{ display:block; color:var(--purple-d); margin-bottom:1mm; font-size:25px; }
   .road .step.done{ border-left-color:#2e7d32; }
   .road .step.done b{ color:#1b5e20; }
   .road .step.now{ border-left-color:#e65100; background:#fff3e8; }
@@ -273,6 +288,15 @@
               </div>
             </div>
             <p class="foot">그림 1. 2-Tier 작동 흐름 — 저전력 센서가 24시간 감시하다 위험 시에만 고성능 비전 AI를 깨운다(전력·연산 절약).</p>
+
+            <div class="pipe">
+              <div class="pt">적외선(IR)<br>프레임</div><span class="pa">→</span>
+              <div class="pt">YOLO11n-pose<br>2D 17관절</div><span class="pa">→</span>
+              <div class="pt">Depth<br>3D 리프팅</div><span class="pa">→</span>
+              <div class="pt">NTU 25관절<br>매핑</div><span class="pa">→</span>
+              <div class="pt hl">ST-GCN v21<br>낙상 판정</div>
+            </div>
+            <p class="foot">그림 2. Tier 2 비전 파이프라인 — 소등 환경에서도 보이는 적외선 영상에서 자세를 뽑아 3D로 복원하고 동작 인식 AI로 낙상을 판정한다.</p>
             <ul>
               <li><b>COG(무게중심)</b>: 네 모서리 하중비로 환자 위치를 계산 → 침대 가장자리로 쏠리는 "이탈 전조" 포착.</li>
               <li><b>ST-GCN</b>: 관절(스켈레톤)을 그래프로 보는 동작 인식 AI. 자세·움직임으로 낙상/정상/위험 3종 분류.</li>
@@ -335,10 +359,30 @@
               <text x="330" y="31" font-size="14" text-anchor="middle" fill="#fff" font-weight="700">적외선 ToF 카메라 (천장)</text>
               <line x1="330" y1="40" x2="330" y2="150" stroke="#2e7d32" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.7"/>
             </svg>
-            <p class="foot">그림 2. 침대 네 모서리의 로드셀이 하중을 재 무게중심(COG)을 계산하고, 천장 적외선 카메라가 필요 시 자세를 확인한다. 환자 신체에 어떤 장치도 부착하지 않는다.</p>
+            <p class="foot">그림 3. 침대 네 모서리의 로드셀이 하중을 재 무게중심(COG)을 계산하고, 천장 적외선 카메라가 필요 시 자세를 확인한다. 환자 신체에 어떤 장치도 부착하지 않는다.</p>
             <ul>
               <li><b>레일 플랫폼</b>: 알루미늄 프로파일(30×60mm) 위에 침대를 올려 전체 하중을 4점으로 분산 측정.</li>
               <li><b>3D 프린팅 인클로저</b>: 센서·MCU 보호용 맞춤 하우징(CAD·STL 완비).</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 학습 데이터 현황 -->
+        <div class="card">
+          <span class="cap">학습 데이터 현황</span>
+          <div class="cont">
+            <p>개인정보·사생활 문제가 없는 <b>공개 3D 스켈레톤 데이터셋</b>만 사용. 같은 센서 계열(Kinect V2 포맷)로 통일해 도메인 혼선을 차단했다.</p>
+            <table class="data">
+              <thead><tr><th>데이터셋</th><th>샘플 수</th><th>클래스 분포 (정상/위험/낙상)</th><th>피험자</th></tr></thead>
+              <tbody>
+                <tr><td class="l">NTU RGB+D 120</td><td>27,679</td><td class="l">20,114 / 6,618 / 947</td><td>54</td></tr>
+                <tr><td class="l">ETRI-Activity3D</td><td>7,002</td><td class="l">5,168 / 0 / 1,834</td><td>60</td></tr>
+                <tr><td class="l"><b>병합</b></td><td><b>34,681</b></td><td class="l">Train 18,771 · Val 9,803 · Holdout 6,107</td><td>—</td></tr>
+              </tbody>
+            </table>
+            <ul>
+              <li><b>데이터 과제</b>: 동적 낙상(쓰러지는 순간) 샘플이 희소 → augmentation·정규화로 일반화 확보(v18→v21).</li>
+              <li><b>검증 방식</b>: 학습에 쓰지 않은 <b>Holdout 피험자</b>로만 최종 성능 측정(과적합 차단).</li>
             </ul>
           </div>
         </div>
@@ -415,6 +459,16 @@
               <div class="step now"><b>▶ 진행 중</b>Tier 1 실물 제작 · Tier 1↔Tier 2 end-to-end 통합</div>
               <div class="step todo"><b>○ 다음 단계</b>실제 병실 데이터 수집 → 파인튜닝(도메인 갭 해소) → 임상 검증 · 간호 스테이션 알림 앱</div>
             </div>
+          </div>
+        </div>
+
+        <!-- 최종 개발 플랫폼 -->
+        <div class="card">
+          <span class="cap">최종 개발 플랫폼 (Tier 3 대시보드)</span>
+          <div class="cont">
+            <p>간호 스테이션에서 <b>여러 침대를 한 화면</b>으로 모니터링. 낙상 확정 시 전체화면 경보(빨강+경보음)와 간호사 <b>확인(ack)</b> 처리까지 end-to-end 동작한다.</p>
+            <img class="shot" src="ymas_dashboard.png" alt="Y-mas 간호 스테이션 대시보드"/>
+            <p class="foot">그림 4. 실제 구현된 Tier 3 대시보드 — 침대별 상태(정상/주의/위험/낙상), P(Fall)·무게중심·이탈도 실시간 표시, 하단 이벤트 로그. FastAPI + WebSocket 실시간 통신.</p>
           </div>
         </div>
 
