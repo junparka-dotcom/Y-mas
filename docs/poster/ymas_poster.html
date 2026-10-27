@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Y-mas 전시부스 포스터 — 의료 Physical AI 솔루션 경진대회</title>
+<style>
+  /* =========================================================
+     규격: 가로 950mm × 세로 1200mm (대회 지정, 변경 금지)
+     템플릿: Physical AI (보라) 선택 — 센서·로봇·하드웨어 융합
+     폰트: Paperlogy (설치 시 자동 적용) / 대체 고딕
+     타이틀 36~42pt · 본문 26~32pt · 각주 20~24pt
+     ========================================================= */
+  @page { size: 950mm 1200mm; margin:0; }
+
+  :root{
+    --purple:#5b2a86;      /* Physical AI 메인 보라 */
+    --purple-d:#3f1d64;
+    --purple-l:#7e57c2;
+    --accent:#8e24aa;
+    --ink:#241a33;
+    --line:#d7cbe6;
+    --soft:#f3edfa;
+    --mm: 0.9195px;   /* 참고용 */
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:#6b6f7a; }
+
+  /* 폰트: Paperlogy 가 설치돼 있으면 사용, 아니면 고딕 대체 */
+  @font-face{ font-family:"Paperlogy"; src:local("Paperlogy"); }
+
+  body{
+    font-family:"Paperlogy","Malgun Gothic","맑은 고딕","Noto Sans KR",sans-serif;
+    color:var(--ink);
+  }
+
+  .poster{
+    width:950mm; height:1200mm;
+    margin:0 auto;
+    position:relative;
+    overflow:hidden;
+    background:
+      /* 좌상단 보라 그라데이션 + 우측 띠 */
+      radial-gradient(circle at 12% 6%, #6a2f93 0 10%, rgba(106,47,147,0) 32%),
+      radial-gradient(circle at 96% 55%, rgba(126,87,194,.35) 0 14%, rgba(126,87,194,0) 40%),
+      linear-gradient(135deg,#4a2270 0%, #5b2a86 45%, #7a3fa0 100%);
+  }
+
+  /* ===== 배경 장식 (물결 상단 띠 / 점 패턴 / DNA 느낌 원) ===== */
+  .bg-dna{ position:absolute; top:20mm; left:10mm; width:120mm; height:150mm;
+    opacity:.18; }
+  .dots{ position:absolute; width:120mm; height:60mm; opacity:.5; }
+  .dots.bl{ bottom:8mm; left:6mm; }
+  .ring{ position:absolute; border:3mm solid rgba(255,255,255,.12); border-radius:50%; }
+  .ring.r1{ width:120mm; height:120mm; right:-30mm; bottom:-20mm; }
+  .ring.r2{ width:70mm; height:70mm; right:40mm; bottom:30mm; border-color:rgba(142,36,170,.25); }
+
+  /* ===== 상단 행사명 밴드 ===== */
+  .brand{
+    position:relative; z-index:5;
+    height:95mm;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding-top:20mm;
+  }
+  .brand h1{
+    margin:0; color:#fff; font-weight:800;
+    font-size:92px; letter-spacing:-1px;
+    text-shadow:0 3mm 6mm rgba(0,0,0,.35);
+    -webkit-text-stroke:1.4px rgba(40,10,60,.55);
+  }
+  .brand .doc{
+    position:absolute; right:40mm; top:14mm; width:90mm; height:90mm;
+    background:radial-gradient(circle at 60% 40%, #7e57c2, #5b2a86);
+    border-radius:50%; opacity:.0; /* placeholder */
+  }
+
+  /* ===== 흰색 작업 영역 ===== */
+  .sheet{
+    position:absolute; z-index:4;
+    left:18mm; right:18mm; top:88mm; bottom:14mm;
+    background:#ffffff;
+    border-radius:8mm;
+    box-shadow:0 2mm 10mm rgba(0,0,0,.25);
+    padding:30mm 28mm 20mm 28mm;
+    display:flex; flex-direction:column;
+  }
+  /* 상단 물결 띠 (흰 영역 위 겹침) */
+  .wave{
+    position:absolute; z-index:4; left:18mm; right:18mm; top:78mm;
+    height:28mm; pointer-events:none;
+  }
+  .wave svg{ width:100%; height:100%; display:block; }
+
+  /* ===== 헤더(프로젝트명 / 소속·팀) ===== */
+  .phead{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom:3px solid var(--purple);
+    padding-bottom:7mm; margin-bottom:9mm;
+  }
+  .phead .pname{ font-size:62px; font-weight:800; color:var(--purple); letter-spacing:-1px; }
+  .phead .pname small{ display:block; font-size:30px; color:#6a5b7d; font-weight:700; margin-top:4mm; letter-spacing:0; }
+  .phead .team{ text-align:right; font-size:30px; font-weight:800; color:var(--purple-d); line-height:1.55; }
+  .phead .team span{ display:block; font-size:24px; color:#777; font-weight:600; }
+
+  /* ===== 2단 그리드 ===== */
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:16mm; flex:1; }
+  .colA,.colB{ display:flex; flex-direction:column; gap:16mm; }
+  .card{ display:flex; flex-direction:column; }
+
+  /* 기능 박스 */
+  .feat{ display:flex; flex-direction:column; gap:4mm; margin-top:2mm; }
+  .feat .f{ background:var(--soft); border-left:4mm solid var(--purple-l);
+    border-radius:0 2mm 2mm 0; padding:4mm 6mm; font-size:28px; line-height:1.45; }
+  .feat .f b{ display:inline-block; color:var(--purple); min-width:0; margin-right:3mm; }
+  table.hw{ font-size:25px; margin-top:4mm; }
+  table.hw td.l{ font-size:24px; }
+
+  /* 섹션 카드 */
+  .card .cap{
+    display:inline-block;
+    background:linear-gradient(90deg,var(--purple),var(--purple-l));
+    color:#fff; font-weight:800; font-size:34px;
+    padding:4mm 10mm; border-radius:2mm 2mm 0 0;
+    letter-spacing:.5px;
+  }
+  .card .cont{
+    border:1.5px solid var(--line); border-top:3px solid var(--purple);
+    border-radius:0 2mm 2mm 2mm;
+    padding:8mm 9mm; font-size:30px; line-height:1.55; background:#fff;
+  }
+  .card .cont p{ margin:0 0 5mm 0; }
+  .card .cont b{ color:var(--purple-d); }
+  .card .cont ul{ margin:0 0 5mm 0; padding-left:9mm; }
+  .card .cont li{ margin-bottom:4mm; }
+  .foot{ font-size:23px; color:#8a7a9c; }
+
+  .lead{ color:var(--purple-d); font-weight:800; }
+
+  /* 워크플로우 다이어그램 */
+  .flow{ background:var(--soft); border:1.5px dashed var(--purple-l);
+    border-radius:3mm; padding:7mm; margin:3mm 0; }
+  .frow{ display:flex; align-items:stretch; justify-content:center; gap:4mm; flex-wrap:wrap; }
+  .node{ flex:1; min-width:52mm; background:#fff; border-radius:2.5mm;
+    border:2px solid var(--purple-l); padding:6mm 4mm; text-align:center;
+    font-size:27px; font-weight:800; color:var(--purple-d); }
+  .node small{ display:block; font-weight:600; font-size:22px; color:#6a5b7d; margin-top:3mm; }
+  .node.t1{ border-color:#e65100; color:#bf360c; }
+  .node.t2{ border-color:#2e7d32; color:#1b5e20; }
+  .node.t3{ border-color:#1565c0; color:#0d47a1; }
+  .arr{ align-self:center; font-size:40px; font-weight:900; color:var(--accent); }
+  .arrd{ width:100%; text-align:center; font-size:34px; color:var(--accent); font-weight:900; }
+
+  /* KPI 카드 */
+  .kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:6mm; margin:5mm 0 3mm; }
+  .kpi{ background:linear-gradient(160deg,var(--purple),var(--purple-d));
+    color:#fff; border-radius:3mm; padding:8mm 3mm; text-align:center; }
+  .kpi .n{ font-size:52px; font-weight:800; color:#e4c6ff; line-height:1; }
+  .kpi .l{ font-size:22px; margin-top:4mm; color:#efe4fb; line-height:1.3; }
+
+  /* 표 */
+  table{ width:100%; border-collapse:collapse; font-size:27px; margin:4mm 0; }
+  th,td{ border:1px solid var(--line); padding:4mm; text-align:center; }
+  thead th{ background:var(--purple); color:#fff; }
+  tbody tr:nth-child(even){ background:var(--soft); }
+  td.l{ text-align:left; }
+
+  /* 설치 개념도 */
+  svg.bed{ width:100%; height:auto; max-height:150mm; display:block; margin:2mm 0 3mm; }
+
+  /* 로드맵 */
+  .road{ display:flex; flex-direction:column; gap:5mm; }
+  .road .step{ padding:5mm 6mm; border-radius:2mm; font-size:27px; line-height:1.45;
+    background:var(--soft); border-left:5mm solid var(--purple-l); }
+  .road .step b{ display:block; color:var(--purple-d); margin-bottom:1.5mm; font-size:28px; }
+  .road .step.done{ border-left-color:#2e7d32; }
+  .road .step.done b{ color:#1b5e20; }
+  .road .step.now{ border-left-color:#e65100; background:#fff3e8; }
+  .road .step.now b{ color:#bf360c; }
+  .road .step.todo{ border-left-color:#8e8e8e; }
+  .road .step.todo b{ color:#555; }
+
+  .badges{ margin-top:5mm; }
+  .pill{ display:inline-block; background:var(--accent); color:#fff;
+    font-size:23px; padding:2mm 5mm; border-radius:20mm; margin:0 2mm 3mm 0; font-weight:700; }
+
+  .srcnote{ position:absolute; bottom:4mm; left:26mm; font-size:19px; color:#b7a9c8; z-index:6; }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <!-- 배경 장식 -->
+  <svg class="dots bl" viewBox="0 0 240 120"><g fill="#ffffff">
+    <!-- 점 격자 -->
+    <!-- 생성 -->
+  </g></svg>
+  <div class="ring r1"></div>
+  <div class="ring r2"></div>
+
+  <!-- ===== 상단 행사명 ===== -->
+  <div class="brand">
+    <h1>의료 Physical AI 솔루션 경진대회</h1>
+  </div>
+
+  <!-- 상단 물결 띠 -->
+  <div class="wave">
+    <svg viewBox="0 0 1000 60" preserveAspectRatio="none">
+      <path d="M0,58 L0,30 Q250,0 500,24 Q750,48 1000,18 L1000,58 Z" fill="#ffffff"/>
+    </svg>
+  </div>
+
+  <!-- ===== 흰색 작업 영역 ===== -->
+  <div class="sheet">
+
+    <!-- 프로젝트명 / 팀 -->
+    <div class="phead">
+      <div class="pname">
+        Y-mas
+        <small>침대가 스스로 감지하는 병실 낙상 <b>예측</b> 시스템 — 넘어지기 "전"에 알린다</small>
+      </div>
+      <div class="team">
+        AI반도체 전공 학부 연구팀
+        <span>소속 대학 · Y-mas Team</span>
+        <span>분야: 의료 Physical AI</span>
+      </div>
+    </div>
+
+    <div class="grid">
+
+      <!-- ===== 왼쪽 단 ===== -->
+      <div class="colA">
+
+        <!-- 개발 배경 및 목적 -->
+        <div class="card">
+          <span class="cap">개발 배경 및 목적</span>
+          <div class="cont">
+            <ul>
+              <li><b>낙상은 입원 환자 안전사고 1위.</b> 골절·사망으로 이어지지만 간호 인력만으로 24시간 감시는 불가능하다.</li>
+              <li>카메라 단독 감시 → <b>사생활 침해</b>와 소등(야간) 시 검출 실패. 웨어러블 → 환자 거부·미착용.</li>
+              <li>상용 제품 대부분은 "넘어진 뒤"를 감지. 임상적으로 의미 있는 개입은 <b>넘어지기 전(Pre-Fall)</b> 경보다.</li>
+            </ul>
+            <p class="lead">→ 목표: 환자 접촉·사생활 침해 없이, 넘어지기 전 위험을 예측해 사전 경보하는 저비용·저지연 시스템.</p>
+          </div>
+        </div>
+
+        <!-- 솔루션 소개 -->
+        <div class="card">
+          <span class="cap">솔루션 소개</span>
+          <div class="cont">
+            <p><b>Y-mas</b>는 병실 침대 자체를 "저울"로 만들어 환자의 무게중심을 상시 읽고, 위험 조짐이 보이면 비전 AI가 깨어나 낙상을 확정하는 <b>2단계(2-Tier) 융합 시스템</b>이다.</p>
+            <div class="feat">
+              <div class="f"><b>주요 기능</b>무게중심 편향 상시 감시 → 이탈 전조 포착 · 비전 AI 정밀 낙상 판정 · 간호 스테이션 즉시 알림</div>
+              <div class="f"><b>적용 대상</b>낙상 고위험 입원 환자 (고령 · 수술 후 · 섬망 환자 등)</div>
+              <div class="f"><b>사용 환경</b>병실 침대. <b>야간 소등 환경에서도 동작</b>(적외선 기반) · 비접촉 · 비착용</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 핵심 기술 및 작동 방식 -->
+        <div class="card">
+          <span class="cap">핵심 기술 및 작동 방식</span>
+          <div class="cont">
+            <div class="flow">
+              <div class="frow">
+                <div class="node t1">Tier 1 · 상시 감시<br><small>로드셀 4개 → HX711 → ESP32<br>무게중심(COG) 80Hz 감시</small></div>
+                <div class="arr">→</div>
+                <div class="node">위험 신호 트리거<br><small>초저지연 네트워크 전송</small></div>
+              </div>
+              <div class="arrd">↓</div>
+              <div class="frow">
+                <div class="node t2">Tier 2 · 정밀 판정<br><small>적외선 카메라 → 자세 추정(YOLO11n-pose)<br>→ 3D 리프팅 → ST-GCN AI</small></div>
+                <div class="arr">→</div>
+                <div class="node t3">Tier 3 · 알림<br><small>간호 스테이션</small></div>
+              </div>
+            </div>
+            <p class="foot">그림 1. 2-Tier 작동 흐름 — 저전력 센서가 24시간 감시하다 위험 시에만 고성능 비전 AI를 깨운다(전력·연산 절약).</p>
+            <ul>
+              <li><b>COG(무게중심)</b>: 네 모서리 하중비로 환자 위치를 계산 → 침대 가장자리로 쏠리는 "이탈 전조" 포착.</li>
+              <li><b>ST-GCN</b>: 관절(스켈레톤)을 그래프로 보는 동작 인식 AI. 자세·움직임으로 낙상/정상/위험 3종 분류.</li>
+              <li><b>엣지 추론</b>: NVIDIA <b>Jetson AGX Orin</b> 에 TensorRT FP16 로 배포(클라우드 불필요, 데이터 외부 유출 없음).</li>
+            </ul>
+            <table class="hw">
+              <thead><tr><th>구성</th><th>하드웨어</th><th>역할</th></tr></thead>
+              <tbody>
+                <tr><td><b>Tier 1</b></td><td class="l">로드셀 ×4 → HX711 ×4 → ESP32</td><td class="l">무게중심 80Hz 상시 감시</td></tr>
+                <tr><td><b>Tier 2</b></td><td class="l">적외선 ToF 카메라 → Jetson AGX Orin</td><td class="l">비전 AI 낙상 정밀 판정</td></tr>
+                <tr><td><b>AI 모델</b></td><td class="l">ST-GCN (학습 파라미터 ≈1.48M)</td><td class="l">낙상/위험/정상 3종 분류</td></tr>
+                <tr><td><b>학습 데이터</b></td><td class="l">NTU RGB+D 120 + ETRI-Activity3D</td><td class="l">공개 3D 스켈레톤 34,681 시퀀스</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 하드웨어 구성 & 설치 개념 -->
+        <div class="card">
+          <span class="cap">하드웨어 구성 &amp; 설치 개념</span>
+          <div class="cont">
+            <svg class="bed" viewBox="0 0 560 340" preserveAspectRatio="xMidYMid meet">
+              <!-- 침대 상판 -->
+              <rect x="70" y="70" width="420" height="200" rx="14" fill="#efe7f8" stroke="#7e57c2" stroke-width="3"/>
+              <rect x="70" y="70" width="110" height="200" rx="14" fill="#e3d6f5" stroke="none"/>
+              <text x="125" y="175" font-size="17" text-anchor="middle" fill="#5b2a86" font-weight="700">베개</text>
+              <text x="335" y="55" font-size="18" text-anchor="middle" fill="#3f1d64" font-weight="800">병실 침대 (레일 플랫폼 위에 안착)</text>
+
+              <!-- 환자 무게중심 -->
+              <circle cx="330" cy="170" r="16" fill="#8e24aa" opacity="0.85"/>
+              <text x="330" y="176" font-size="15" text-anchor="middle" fill="#fff" font-weight="800">COG</text>
+              <text x="330" y="205" font-size="14" text-anchor="middle" fill="#6a1b9a">무게중심</text>
+
+              <!-- 4개 로드셀 (모서리) -->
+              <g font-size="15" font-weight="800" text-anchor="middle">
+                <rect x="78" y="78" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
+                <text x="105" y="98" fill="#bf360c">FL</text>
+                <rect x="428" y="78" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
+                <text x="455" y="98" fill="#bf360c">FR</text>
+                <rect x="78" y="232" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
+                <text x="105" y="252" fill="#bf360c">RL</text>
+                <rect x="428" y="232" width="54" height="30" rx="5" fill="#fff" stroke="#e65100" stroke-width="2.5"/>
+                <text x="455" y="252" fill="#bf360c">RR</text>
+              </g>
+
+              <!-- 신호선 -->
+              <g stroke="#e65100" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.7">
+                <line x1="105" y1="108" x2="280" y2="310"/>
+                <line x1="455" y1="108" x2="280" y2="310"/>
+                <line x1="105" y1="232" x2="280" y2="310"/>
+                <line x1="455" y1="232" x2="280" y2="310"/>
+              </g>
+
+              <!-- MCU + 엣지 -->
+              <rect x="210" y="300" width="140" height="34" rx="6" fill="#5b2a86"/>
+              <text x="280" y="322" font-size="15" text-anchor="middle" fill="#fff" font-weight="800">HX711×4 → ESP32</text>
+
+              <!-- 카메라 -->
+              <rect x="250" y="12" width="160" height="28" rx="6" fill="#1b5e20"/>
+              <text x="330" y="31" font-size="14" text-anchor="middle" fill="#fff" font-weight="700">적외선 ToF 카메라 (천장)</text>
+              <line x1="330" y1="40" x2="330" y2="150" stroke="#2e7d32" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.7"/>
+            </svg>
+            <p class="foot">그림 2. 침대 네 모서리의 로드셀이 하중을 재 무게중심(COG)을 계산하고, 천장 적외선 카메라가 필요 시 자세를 확인한다. 환자 신체에 어떤 장치도 부착하지 않는다.</p>
+            <ul>
+              <li><b>레일 플랫폼</b>: 알루미늄 프로파일(30×60mm) 위에 침대를 올려 전체 하중을 4점으로 분산 측정.</li>
+              <li><b>3D 프린팅 인클로저</b>: 센서·MCU 보호용 맞춤 하우징(CAD·STL 완비).</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== 오른쪽 단 ===== -->
+      <div class="colB">
+
+        <!-- 주요 성과 및 차별점 -->
+        <div class="card">
+          <span class="cap">주요 성과 및 차별점</span>
+          <div class="cont">
+            <div class="kpis">
+              <div class="kpi"><div class="n">1.000</div><div class="l">동적 낙상 재현율<br>(Holdout 84/84)</div></div>
+              <div class="kpi"><div class="n">≈2 ms</div><div class="l">엣지 추론 지연<br>(≈478 qps)</div></div>
+              <div class="kpi"><div class="n">0.15–0.30s</div><div class="l">Tier 1 목표<br>반응 시간</div></div>
+              <div class="kpi"><div class="n">79→70</div><div class="l">오경보 감소<br>(v17→v21)</div></div>
+            </div>
+            <table>
+              <thead><tr><th>버전</th><th>핵심 개선</th><th>낙상 재현율</th><th>오경보</th></tr></thead>
+              <tbody>
+                <tr><td>v17</td><td class="l">재현 베이스라인</td><td>0.976</td><td>79</td></tr>
+                <tr><td>v18</td><td class="l">데이터 증강 강화</td><td>0.976</td><td>67</td></tr>
+                <tr><td><b>v21</b></td><td class="l"><b>정규화 강화(dropout 0.50)</b></td><td><b>1.000</b></td><td><b>70</b></td></tr>
+              </tbody>
+            </table>
+            <p class="foot">표 1. 측정 조건: 공개 3D 스켈레톤 Holdout 6,107개, 배포 임계값 th=0.77, Jetson AGX Orin · TensorRT FP16 기준.</p>
+            <p><b>차별점</b></p>
+            <ul>
+              <li><b>감지가 아니라 예측</b> — 무게중심 편향으로 넘어지기 전에 경보.</li>
+              <li><b>놓친 낙상(FN) 0 지향</b> — "놓친 낙상이 오경보보다 치명적"이라는 임상 원칙을 지표 설계에 반영(재현율 1.000 달성).</li>
+              <li><b>저전력 2-Tier</b> — 상시 센서(저연산)+필요 시 비전 AI(고연산)로 전력·비용 최소화.</li>
+              <li><b>비접촉·비식별·온디바이스</b> — 영상 외부 전송 없이 엣지에서만 처리, 사생활 보호.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 활용 방안 및 기대효과 -->
+        <div class="card">
+          <span class="cap">활용 방안 및 기대효과</span>
+          <div class="cont">
+            <p><b>활용 방안</b></p>
+            <ul>
+              <li>급성기 병원·요양병원 낙상 고위험군 병상에 설치형 모듈로 보급.</li>
+              <li>동일 센서 인프라 위에 <b>욕창 예방 자세 분류</b> 등 확장 → "풀 베드 모니터링" 플랫폼.</li>
+            </ul>
+            <p><b>기대효과</b></p>
+            <ul>
+              <li>낙상 사고·그로 인한 골절/사망 감소, 야간 간호 부담 경감.</li>
+              <li>사전 경보로 "낙상 후 처치"에서 <b>"낙상 전 예방"</b>으로 전환.</li>
+            </ul>
+            <div class="feat">
+              <div class="f"><b>향후 발전 방향</b>실제 병실 카메라로 현장 데이터 수집 → 파인튜닝으로 환경 차이(도메인 갭) 해소 → 실병실 end-to-end 통합 · 임상 검증</div>
+              <div class="f"><b>확장 로드맵</b>동일 센서 인프라에 욕창 예방 자세 모니터링을 얹어 "풀 베드(Full-Bed) 환자 상태 모니터링" 플랫폼으로 발전</div>
+            </div>
+            <div class="badges">
+              <span class="pill">Pre-Fall 예측</span>
+              <span class="pill">2-Tier 융합</span>
+              <span class="pill">ST-GCN</span>
+              <span class="pill">Jetson AGX Orin</span>
+              <span class="pill">비접촉·온디바이스</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 추진 현황 / 로드맵 -->
+        <div class="card">
+          <span class="cap">추진 현황 &amp; 로드맵</span>
+          <div class="cont">
+            <div class="road">
+              <div class="step done"><b>✓ Tier 2 AI 모델</b>v17→v21 개선 완료 · Holdout 동적 낙상 재현율 1.000 달성 · TensorRT 엣지 배포 검증</div>
+              <div class="step done"><b>✓ 하드웨어 설계</b>레일 플랫폼 · 로드셀/HX711/ESP32 펌웨어 · 3D 프린팅 인클로저 CAD 완료</div>
+              <div class="step now"><b>▶ 진행 중</b>Tier 1 실물 제작 · Tier 1↔Tier 2 end-to-end 통합</div>
+              <div class="step todo"><b>○ 다음 단계</b>실제 병실 데이터 수집 → 파인튜닝(도메인 갭 해소) → 임상 검증 · 간호 스테이션 알림 앱</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div class="srcnote">※ 성과 수치는 공개 3D 스켈레톤 데이터셋(NTU RGB+D 120 · ETRI-Activity3D) Holdout 기준 · 실환경 검증은 진행 예정 · github.com/junparka-dotcom/Y-mas</div>
+
+</div>
+
+<script>
+  // 하단 점 패턴 자동 생성 (배경 장식)
+  (function(){
+    var svg = document.querySelector('.dots.bl g');
+    if(!svg) return;
+    var s="";
+    for(var r=0;r<10;r++) for(var c=0;c<24;c++){
+      s += '<circle cx="'+(c*10+5)+'" cy="'+(r*12+6)+'" r="1.6" opacity="'+(0.25+Math.random()*0.5).toFixed(2)+'"/>';
+    }
+    svg.innerHTML = s;
+  })();
+</script>
+</body>
+</html>
