@@ -50,6 +50,9 @@
     opacity:.18; }
   .dots{ position:absolute; width:120mm; height:60mm; opacity:.5; }
   .dots.bl{ bottom:8mm; left:6mm; }
+  /* 상단 테크 패턴 */
+  .hex{ position:absolute; top:0; left:0; width:360mm; height:95mm; opacity:.5; z-index:1; }
+  .circuit{ position:absolute; top:4mm; right:6mm; width:120mm; height:88mm; opacity:.6; z-index:1; }
   .ring{ position:absolute; border:3mm solid rgba(255,255,255,.12); border-radius:50%; }
   .ring.r1{ width:120mm; height:120mm; right:-30mm; bottom:-20mm; }
   .ring.r2{ width:70mm; height:70mm; right:40mm; bottom:30mm; border-color:rgba(142,36,170,.25); }
@@ -97,13 +100,14 @@
     padding-bottom:7mm; margin-bottom:9mm;
   }
   .phead .pname{ font-size:62px; font-weight:800; color:var(--purple); letter-spacing:-1px; }
+  .phead .pname .eng{ font-size:38px; color:var(--purple-l); font-weight:700; }
   .phead .pname small{ display:block; font-size:30px; color:#6a5b7d; font-weight:700; margin-top:4mm; letter-spacing:0; }
   .phead .team{ text-align:right; font-size:30px; font-weight:800; color:var(--purple-d); line-height:1.55; }
   .phead .team span{ display:block; font-size:24px; color:#777; font-weight:600; }
 
   /* ===== 2단 그리드 ===== */
   .grid{ display:grid; grid-template-columns:1fr 1fr; gap:16mm; flex:1; }
-  .colA,.colB{ display:flex; flex-direction:column; gap:9mm; }
+  .colA,.colB{ display:flex; flex-direction:column; gap:6mm; }
   .card{ display:flex; flex-direction:column; }
 
   /* 기능 박스 */
@@ -125,9 +129,9 @@
   .card .cont{
     border:1.5px solid var(--line); border-top:3px solid var(--purple);
     border-radius:0 2mm 2mm 2mm;
-    padding:6mm 7mm; font-size:27px; line-height:1.45; background:#fff;
+    padding:5mm 6mm; font-size:25px; line-height:1.4; background:#fff;
   }
-  .card .cont p{ margin:0 0 3.5mm 0; }
+  .card .cont p{ margin:0 0 3mm 0; }
   .card .cont b{ color:var(--purple-d); }
   .card .cont ul{ margin:0 0 3mm 0; padding-left:8mm; }
   .card .cont li{ margin-bottom:2.5mm; }
@@ -174,12 +178,17 @@
   table.data th, table.data td{ font-size:23px; }
   table.data td.l{ text-align:left; }
 
+  /* 서브 소제목 */
+  h4.sub{ margin:5mm 0 2mm; font-size:27px; color:var(--purple-d); font-weight:800;
+    border-left:4mm solid var(--purple-l); padding-left:4mm; }
+
   /* 설치 개념도 */
   svg.bed{ width:100%; height:auto; max-height:150mm; display:block; margin:2mm 0 3mm; }
 
   /* 플랫폼 스크린샷 */
-  img.shot{ width:100%; height:auto; display:block; border:2px solid var(--line);
-    border-radius:3mm; margin:3mm 0 2mm; box-shadow:0 1mm 4mm rgba(13,0,40,.15); }
+  img.shot{ width:100%; height:auto; max-height:150mm; object-fit:cover; object-position:top;
+    display:block; border:2px solid var(--line);
+    border-radius:3mm; margin:2mm 0 1mm; box-shadow:0 1mm 4mm rgba(13,0,40,.15); }
 
   /* 로드맵 */
   .road{ display:flex; flex-direction:column; gap:3.5mm; }
@@ -204,9 +213,20 @@
 <div class="poster">
 
   <!-- 배경 장식 -->
+  <svg class="hex" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
+    <g fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.5">
+      <!-- 육각 격자 (스크립트로 채움) -->
+    </g>
+  </svg>
+  <svg class="circuit" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
+    <g stroke="#b388ff" stroke-width="1.4" fill="none" opacity="0.45">
+      <path d="M10,40 H70 V90 H140"/><circle cx="10" cy="40" r="4" fill="#b388ff"/><circle cx="140" cy="90" r="4" fill="#b388ff"/>
+      <path d="M30,150 H90 V110"/><circle cx="30" cy="150" r="4" fill="#b388ff"/>
+      <path d="M20,230 H100 V190 H160"/><circle cx="160" cy="190" r="4" fill="#b388ff"/>
+      <path d="M50,270 V210"/><circle cx="50" cy="270" r="4" fill="#b388ff"/>
+    </g>
+  </svg>
   <svg class="dots bl" viewBox="0 0 240 120"><g fill="#ffffff">
-    <!-- 점 격자 -->
-    <!-- 생성 -->
   </g></svg>
   <div class="ring r1"></div>
   <div class="ring r2"></div>
@@ -229,13 +249,14 @@
     <!-- 프로젝트명 / 팀 -->
     <div class="phead">
       <div class="pname">
-        Y-mas
+        골드타임 <span class="eng">(Y-mas)</span>
         <small>침대가 스스로 감지하는 병실 낙상 <b>예측</b> 시스템 — 넘어지기 "전"에 알린다</small>
       </div>
       <div class="team">
-        AI반도체 전공 학부 연구팀
-        <span>소속 대학 · Y-mas Team</span>
-        <span>분야: 의료 Physical AI</span>
+        <b>팀 골드타임</b>
+        <span>AI반도체학부 · 물리치료학과</span>
+        <span>박하람 · 김성경 · 소정우 · 윤지원</span>
+        <span>분야 : 의료 Physical AI</span>
       </div>
     </div>
 
@@ -311,6 +332,17 @@
                 <tr><td><b>학습 데이터</b></td><td class="l">NTU RGB+D 120 + ETRI-Activity3D</td><td class="l">공개 3D 스켈레톤 34,681 시퀀스</td></tr>
               </tbody>
             </table>
+
+            <h4 class="sub">Tier 1 · 3-Path 조기 판정 로직</h4>
+            <table class="data">
+              <thead><tr><th>경로</th><th>발동 조건</th><th>동작</th></tr></thead>
+              <tbody>
+                <tr><td><b>Fast</b></td><td class="l">체중 급락 (≤ −45 kg/s) &amp; 이탈도 ≥ 0.30</td><td class="l">즉시 경보<br>(확정 절차 생략)</td></tr>
+                <tr><td><b>Predictive</b></td><td class="l">이탈도 ≥ 0.42 &amp; 증가속도 ≥ 1.2/s &amp; 임계 도달 ≤ 0.25 s</td><td class="l">선행 경보<br>(넘어지기 전)</td></tr>
+                <tr><td><b>Standard</b></td><td class="l">이탈도 ≥ 0.62 &amp; (COG 속도↑ 또는 체중감소 ≥ 25%)</td><td class="l">2회 확인 후 경보</td></tr>
+              </tbody>
+            </table>
+            <p class="foot">표 2. 하중 센서만으로 "넘어지는 순간(Fast)"과 "넘어지기 전 조짐(Predictive)"을 모두 잡는 3경로 판정. 위험 신호 발생 시 Tier 2 비전 AI를 깨운다.</p>
           </div>
         </div>
 
@@ -369,26 +401,6 @@
           </div>
         </div>
 
-        <!-- 학습 데이터 현황 -->
-        <div class="card">
-          <span class="cap">학습 데이터 현황</span>
-          <div class="cont">
-            <p>개인정보·사생활 문제가 없는 <b>공개 3D 스켈레톤 데이터셋</b>만 사용. 같은 센서 계열(Kinect V2 포맷)로 통일해 도메인 혼선을 차단했다.</p>
-            <table class="data">
-              <thead><tr><th>데이터셋</th><th>샘플 수</th><th>클래스 분포 (정상/위험/낙상)</th><th>피험자</th></tr></thead>
-              <tbody>
-                <tr><td class="l">NTU RGB+D 120</td><td>27,679</td><td class="l">20,114 / 6,618 / 947</td><td>54</td></tr>
-                <tr><td class="l">ETRI-Activity3D</td><td>7,002</td><td class="l">5,168 / 0 / 1,834</td><td>60</td></tr>
-                <tr><td class="l"><b>병합</b></td><td><b>34,681</b></td><td class="l">Train 18,771 · Val 9,803 · Holdout 6,107</td><td>—</td></tr>
-              </tbody>
-            </table>
-            <ul>
-              <li><b>데이터 과제</b>: 동적 낙상(쓰러지는 순간) 샘플이 희소 → augmentation·정규화로 일반화 확보(v18→v21).</li>
-              <li><b>검증 방식</b>: 학습에 쓰지 않은 <b>Holdout 피험자</b>로만 최종 성능 측정(과적합 차단).</li>
-            </ul>
-          </div>
-        </div>
-
       </div>
 
       <!-- ===== 오른쪽 단 ===== -->
@@ -419,6 +431,26 @@
               <li><b>놓친 낙상(FN) 0 지향</b> — "놓친 낙상이 오경보보다 치명적"이라는 임상 원칙을 지표 설계에 반영(재현율 1.000 달성).</li>
               <li><b>저전력 2-Tier</b> — 상시 센서(저연산)+필요 시 비전 AI(고연산)로 전력·비용 최소화.</li>
               <li><b>비접촉·비식별·온디바이스</b> — 영상 외부 전송 없이 엣지에서만 처리, 사생활 보호.</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 학습 데이터 현황 -->
+        <div class="card">
+          <span class="cap">학습 데이터 현황</span>
+          <div class="cont">
+            <p>개인정보·사생활 문제가 없는 <b>공개 3D 스켈레톤 데이터셋</b>만 사용. 같은 센서 계열(Kinect V2 포맷)로 통일해 도메인 혼선을 차단했다.</p>
+            <table class="data">
+              <thead><tr><th>데이터셋</th><th>샘플 수</th><th>클래스 분포 (정상/위험/낙상)</th><th>피험자</th></tr></thead>
+              <tbody>
+                <tr><td class="l">NTU RGB+D 120</td><td>27,679</td><td class="l">20,114 / 6,618 / 947</td><td>54</td></tr>
+                <tr><td class="l">ETRI-Activity3D</td><td>7,002</td><td class="l">5,168 / 0 / 1,834</td><td>60</td></tr>
+                <tr><td class="l"><b>병합</b></td><td><b>34,681</b></td><td class="l">Train 18,771 · Val 9,803 · Holdout 6,107</td><td>—</td></tr>
+              </tbody>
+            </table>
+            <ul>
+              <li><b>데이터 과제</b>: 동적 낙상(쓰러지는 순간) 샘플이 희소 → augmentation·정규화로 일반화 확보(v18→v21).</li>
+              <li><b>검증 방식</b>: 학습에 쓰지 않은 <b>Holdout 피험자</b>로만 최종 성능 측정(과적합 차단).</li>
             </ul>
           </div>
         </div>
@@ -493,6 +525,30 @@
       s += '<circle cx="'+(c*10+5)+'" cy="'+(r*12+6)+'" r="1.6" opacity="'+(0.25+Math.random()*0.5).toFixed(2)+'"/>';
     }
     svg.innerHTML = s;
+  })();
+
+  // 상단 육각 격자 패턴 생성 (테크 배경)
+  (function(){
+    var g = document.querySelector('.hex g');
+    if(!g) return;
+    function hexPath(cx,cy,r){
+      var p="";
+      for(var i=0;i<6;i++){
+        var a=Math.PI/180*(60*i-30);
+        var x=(cx+r*Math.cos(a)).toFixed(1), y=(cy+r*Math.sin(a)).toFixed(1);
+        p += (i===0?"M":"L")+x+","+y;
+      }
+      return p+"Z";
+    }
+    var r=18, dx=r*1.732, dy=r*1.5, s="";
+    for(var row=0;row<8;row++){
+      for(var col=0;col<14;col++){
+        var cx=col*dx + (row%2? dx/2:0);
+        var cy=row*dy;
+        if(Math.random()<0.78) s+='<path d="'+hexPath(cx,cy,r)+'"/>';
+      }
+    }
+    g.innerHTML=s;
   })();
 </script>
 </body>
