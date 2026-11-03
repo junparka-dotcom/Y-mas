@@ -4,322 +4,242 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Y-mas — 의료 Physical AI 경진대회 발표</title>
-<!-- 현장 인터넷 사용 가능 → 웹폰트 로드(실패 시 시스템 폰트로 자동 폴백, 오프라인에서도 정상 동작) -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <style>
-/* ============================================================
-   Y-mas 발표 슬라이드 (자체 완결형 — 오프라인 동작)
-   조작: → / Space 다음, ← 이전, F 전체화면, P 인쇄(PDF)
-   ============================================================ */
 :root{
-  --navy:#0b2545; --blue:#13315c; --accent:#2a7de1; --accent2:#00b8a9;
-  --risk:#f4a300; --fall:#e5484d; --ok:#1aa179;
-  --ink:#1a2330; --muted:#64748b; --line:#dbe3ef; --bg:#ffffff; --soft:#f4f8ff;
+  --navy:#0b2545;--blue:#13315c;--accent:#2376d9;--teal:#00a99a;
+  --risk:#ed9e00;--fall:#dc3f48;--ok:#159a73;--ink:#182433;
+  --muted:#5c6d82;--line:#d7e0eb;--soft:#f2f7fd;--white:#fff;
 }
-*{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;}
-body{
-  font-family:"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
-  background:#0a1626; color:var(--ink); overflow:hidden;
-}
-#deck{position:fixed; inset:0;}
-.slide{
-  position:absolute; inset:0; display:none; flex-direction:column;
-  padding:52px 64px; background:var(--bg);
-  animation:fade .35s ease;
-}
-.slide.active{display:flex;}
-@keyframes fade{from{opacity:0; transform:translateY(8px);}to{opacity:1; transform:none;}}
-
-/* 상단 바 */
-.kicker{display:flex; align-items:center; gap:12px; margin-bottom:18px;}
-.kicker .dot{width:11px; height:11px; border-radius:50%; background:var(--accent);}
-.kicker .tag{font-size:15px; font-weight:700; color:var(--accent); letter-spacing:.5px;}
-.kicker .judge{margin-left:auto; font-size:13px; color:#fff; background:var(--blue);
-  padding:5px 12px; border-radius:20px; font-weight:600;}
-
-h1{font-size:40px; line-height:1.18; color:var(--navy); font-weight:800; margin-bottom:14px;}
-h2{font-size:34px; line-height:1.2; color:var(--navy); font-weight:800; margin-bottom:20px;}
-h2 .u{color:var(--accent); border-bottom:4px solid var(--accent2); padding-bottom:2px;}
-p.lead{font-size:20px; color:var(--ink); line-height:1.55;}
-.muted{color:var(--muted);}
-
-ul{list-style:none; display:flex; flex-direction:column; gap:14px; margin-top:6px;}
-ul li{font-size:20px; line-height:1.5; padding-left:30px; position:relative;}
-ul li::before{content:""; position:absolute; left:4px; top:11px; width:10px; height:10px;
-  background:var(--accent); border-radius:2px; transform:rotate(45deg);}
-ul li b{color:var(--navy);}
-ul.tight li{font-size:18px; gap:8px;}
-
-.grid2{display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:8px;}
-.card{background:var(--soft); border:1px solid var(--line); border-radius:16px; padding:22px 24px;}
-.card h3{font-size:19px; color:var(--blue); margin-bottom:10px;}
-.card p{font-size:16px; line-height:1.5; color:var(--ink);}
-
-table{width:100%; border-collapse:collapse; margin-top:10px; font-size:17px;}
-th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--line);}
-th{background:var(--navy); color:#fff; font-weight:700;}
-tr:nth-child(even) td{background:var(--soft);}
-td.big{font-size:22px; font-weight:800; color:var(--accent);}
-
-/* tier flow */
-.tiers{display:grid; grid-template-columns:1fr auto 1fr auto 1fr; align-items:stretch; gap:10px; margin-top:14px;}
-.tier{background:var(--soft); border:2px solid var(--line); border-radius:16px; padding:18px 18px;}
-.tier .n{font-size:14px; font-weight:800; color:#fff; background:var(--accent); display:inline-block;
-  padding:3px 10px; border-radius:12px; margin-bottom:10px;}
-.tier h4{font-size:19px; color:var(--navy); margin-bottom:8px;}
-.tier p{font-size:15px; color:var(--ink); line-height:1.45;}
-.arrow{display:flex; align-items:center; justify-content:center; font-size:30px; color:var(--accent); font-weight:800;}
-
-/* state chips */
-.states{display:flex; gap:16px; margin-top:20px;}
-.chip{flex:1; text-align:center; border-radius:14px; padding:18px; font-weight:800; font-size:22px; color:#fff;}
-.chip small{display:block; font-size:14px; font-weight:600; opacity:.9; margin-top:4px;}
-.c-ok{background:var(--ok);} .c-risk{background:var(--risk);} .c-fall{background:var(--fall);}
-
-/* metric cards */
-.metrics{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-top:10px;}
-.metric{background:linear-gradient(160deg,var(--navy),var(--blue)); color:#fff; border-radius:16px; padding:22px 18px; text-align:center;}
-.metric .v{font-size:36px; font-weight:800; line-height:1;}
-.metric .v small{font-size:17px; font-weight:700;}
-.metric .l{font-size:14px; margin-top:10px; opacity:.9; line-height:1.4;}
-
-/* video placeholder */
-.videobox{flex:1; margin-top:6px; border:3px dashed var(--accent); border-radius:18px;
-  background:repeating-linear-gradient(45deg,#f0f6ff,#f0f6ff 18px,#e7f0ff 18px,#e7f0ff 36px);
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:var(--blue);}
-.videobox .play{width:92px; height:92px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center;}
-.videobox .play::after{content:""; border-left:30px solid #fff; border-top:19px solid transparent; border-bottom:19px solid transparent; margin-left:7px;}
-.videobox .t{font-size:24px; font-weight:800;}
-.videobox .s{font-size:16px; color:var(--muted); max-width:620px; text-align:center; line-height:1.5;}
-
-/* title slide */
-.title-slide{background:linear-gradient(150deg,#0b2545 0%,#13315c 55%,#1b4a7a 100%); color:#fff; justify-content:center;}
-.title-slide h1{color:#fff; font-size:58px; margin-bottom:22px;}
-.title-slide .sub{font-size:26px; color:#bcd6f5; font-weight:600; line-height:1.5; margin-bottom:40px;}
-.title-slide .meta{font-size:17px; color:#8fb4dd;}
-.title-slide .badge{display:inline-block; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.3);
-  padding:8px 18px; border-radius:24px; font-size:16px; font-weight:700; margin-bottom:28px;}
-
-/* closing */
-.closing{background:linear-gradient(150deg,#0b2545,#13315c); color:#fff; justify-content:center; align-items:flex-start;}
-.closing h2{color:#fff;} .closing h2 .u{color:#6fd3c8; border-color:#6fd3c8;}
-.closing ul li{color:#dbe9fb;} .closing ul li b{color:#fff;}
-
-/* footer / progress */
-.foot{position:absolute; bottom:16px; left:64px; right:64px; display:flex; justify-content:space-between;
-  font-size:13px; color:var(--muted);}
-.slide.title-slide .foot,.slide.closing .foot{color:#8fb4dd;}
-#bar{position:fixed; bottom:0; left:0; height:5px; background:var(--accent2); transition:width .3s; z-index:10;}
-.note{margin-top:14px; font-size:14px; color:var(--muted); background:var(--soft); border-left:4px solid var(--accent);
-  padding:10px 14px; border-radius:0 8px 8px 0;}
-.imgwrap{display:flex; gap:24px; align-items:center; margin-top:8px;}
-.imgwrap img{max-height:300px; border:1px solid var(--line); border-radius:12px; background:#fff;}
-.ph{border:2px dashed var(--line); border-radius:12px; color:var(--muted); font-size:15px;
-  display:flex; align-items:center; justify-content:center; text-align:center; padding:20px; min-height:120px;}
-
-@media print{
-  body{overflow:visible; background:#fff;}
-  .slide{display:flex !important; position:relative; page-break-after:always; height:100vh; inset:auto;}
-  #bar,.help{display:none;}
-}
-.help{position:fixed; top:12px; right:14px; font-size:12px; color:rgba(255,255,255,.6); z-index:20;}
+*{box-sizing:border-box;margin:0;padding:0} html,body{height:100%}
+body{font-family:"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;background:#071321;color:var(--ink);overflow:hidden}
+#deck{position:fixed;inset:0}.slide{position:absolute;inset:0;display:none;flex-direction:column;padding:42px 58px 38px;background:#fff;animation:fade .25s ease}.slide.active{display:flex}
+@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.kicker{display:flex;align-items:center;gap:10px;margin-bottom:12px}.dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}.tag{font-size:14px;font-weight:800;color:var(--accent);letter-spacing:.4px}.judge{margin-left:auto;color:#fff;background:var(--blue);font-size:12px;font-weight:700;padding:5px 11px;border-radius:16px}
+h1{font-size:52px;line-height:1.12;color:var(--navy);font-weight:900}h2{font-size:32px;line-height:1.2;color:var(--navy);font-weight:850;margin-bottom:14px}h2 .u{color:var(--accent);border-bottom:4px solid var(--teal)}h3{font-size:18px;color:var(--blue);margin-bottom:8px}p{font-size:16px;line-height:1.48}.lead{font-size:19px;line-height:1.48}.muted{color:var(--muted)}.em{color:var(--accent);font-weight:800}.red{color:var(--fall);font-weight:800}
+ul{list-style:none;display:flex;flex-direction:column;gap:9px;margin-top:5px}li{font-size:17px;line-height:1.42;padding-left:25px;position:relative}li:before{content:"";position:absolute;left:3px;top:9px;width:8px;height:8px;background:var(--accent);border-radius:2px;transform:rotate(45deg)}li b{color:var(--navy)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:17px 19px}.card p{font-size:15px}.card.dark{background:linear-gradient(150deg,var(--navy),var(--blue));color:#fff;border:0}.card.dark h3{color:#8fc8ff}.card.warn{background:#fff9eb;border-color:#f2d58b}.card.good{background:#edfbf8;border-color:#a8ded5}
+.statrow{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-top:10px}.stat{border-left:5px solid var(--accent);background:var(--soft);padding:15px 17px;border-radius:4px 12px 12px 4px}.stat .num{font-size:30px;font-weight:900;color:var(--navy)}.stat .lbl{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.35}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}th{background:var(--navy);color:#fff;font-weight:700}tr:nth-child(even) td{background:var(--soft)}td strong{color:var(--blue)}.smalltable{font-size:12.5px}.smalltable th,.smalltable td{padding:6px 8px}
+.flow{display:flex;align-items:stretch;gap:8px;margin-top:9px}.step{flex:1;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:14px 11px;text-align:center}.step .n{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;font-weight:800;margin-bottom:7px}.step h3{font-size:15px;margin-bottom:5px}.step p{font-size:12.5px;line-height:1.35}.arr{display:flex;align-items:center;color:var(--accent);font-size:23px;font-weight:900}
+.tiers{display:grid;grid-template-columns:1fr auto 1.15fr auto 1fr;align-items:stretch;gap:8px;margin-top:8px}.tier{background:var(--soft);border:2px solid var(--line);border-radius:14px;padding:15px}.tier .n{display:inline-block;padding:3px 9px;border-radius:12px;background:var(--accent);color:#fff;font-size:12px;font-weight:800;margin-bottom:8px}.tier h3{font-size:18px}.tier p{font-size:13.5px}.arr2{display:flex;align-items:center;color:var(--accent);font-size:27px;font-weight:900}
+.states{display:flex;gap:12px;margin:12px 0}.chip{flex:1;color:#fff;text-align:center;padding:13px;border-radius:12px;font-size:20px;font-weight:900}.chip small{display:block;font-size:12px;font-weight:600;margin-top:3px;opacity:.92}.ok{background:var(--ok)}.risk{background:var(--risk)}.fall{background:var(--fall)}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric{background:linear-gradient(155deg,var(--navy),var(--blue));color:#fff;text-align:center;border-radius:14px;padding:17px 10px}.metric .v{font-size:31px;font-weight:900}.metric .v small{font-size:14px}.metric .l{font-size:12.5px;line-height:1.35;margin-top:7px;color:#d7e8fb}
+.callout{font-size:13px;color:var(--muted);background:var(--soft);border-left:4px solid var(--accent);padding:8px 12px;border-radius:0 8px 8px 0;margin-top:10px}.callout.warn{background:#fff7e5;border-color:var(--risk);color:#735000}.callout.red{background:#fff0f1;border-color:var(--fall);color:#74252a}
+.source{font-size:10.5px;color:#748399;margin-top:auto;padding-top:8px}.source a{color:#4f729a;text-decoration:none}.badge{display:inline-block;font-size:11px;font-weight:800;padding:3px 7px;border-radius:10px;background:#dbeafe;color:#174b85}.badge.done{background:#dff6ef;color:#116b54}.badge.next{background:#fff0cf;color:#815900}
+.videobox{flex:1;border:3px dashed var(--accent);border-radius:16px;background:repeating-linear-gradient(45deg,#f1f7ff,#f1f7ff 16px,#e8f1fc 16px,#e8f1fc 32px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}.play{width:74px;height:74px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center}.play:after{content:"";border-left:25px solid #fff;border-top:15px solid transparent;border-bottom:15px solid transparent;margin-left:5px}.videobox .t{font-size:22px;font-weight:900;color:var(--blue)}.videobox .s{font-size:14px;color:var(--muted);text-align:center;line-height:1.5}
+.title-slide{justify-content:center;background:linear-gradient(145deg,#071d37,#133f70);color:#fff}.title-slide h1{color:#fff;font-size:62px}.title-slide .sub{font-size:25px;line-height:1.5;color:#c8def6;margin:18px 0 33px}.title-slide .meta{font-size:15px;color:#8fb5dc}.title-slide .topbadge{display:inline-block;width:max-content;padding:7px 16px;border:1px solid #6288ad;border-radius:20px;background:#ffffff12;font-size:14px;font-weight:700;margin-bottom:22px}.closing{justify-content:center;background:linear-gradient(145deg,#071d37,#133f70);color:#fff}.closing h2{color:#fff;font-size:38px}.closing h2 .u{color:#6de0cf;border-color:#6de0cf}.closing p{color:#c8def6}
+.foot{position:absolute;left:58px;right:58px;bottom:13px;display:flex;justify-content:space-between;color:#728196;font-size:11px}.title-slide .foot,.closing .foot{color:#87a8c9}#bar{position:fixed;bottom:0;left:0;height:4px;background:var(--teal);transition:width .25s;z-index:20}.help{position:fixed;right:12px;top:8px;z-index:30;color:#ffffff80;font-size:10px}
+@media print{body{overflow:visible;background:#fff}.slide{display:flex!important;position:relative;inset:auto;height:100vh;page-break-after:always}#bar,.help{display:none}}
 </style>
 </head>
 <body>
-<div class="help">→ Space 다음 · ← 이전 · F 전체화면 · P 인쇄(PDF)</div>
+<div class="help">→/Space 다음 · ← 이전 · F 전체화면 · P PDF</div>
 <div id="deck">
 
-<!-- ============ S1 타이틀 ============ -->
 <section class="slide title-slide active">
-  <div class="badge">의료 Physical AI 경진대회</div>
+  <div class="topbadge">의료 Physical AI 경진대회</div>
   <h1>Y-mas</h1>
-  <div class="sub">침대를 넘어선 병실 낙상 <b style="color:#fff">예측·감지</b> 플랫폼<br>
-    — 낙상을 <b style="color:#6fd3c8">감지</b>하는 것을 넘어, <b style="color:#6fd3c8">일어나기 전에 예측</b>하는 엣지 AI</div>
+  <div class="sub">환자가 <b style="color:#fff">떨어진 뒤</b> 알리는 시스템에서<br><b style="color:#6de0cf">떨어지기 전</b> 개입하는 병상 엣지 AI로</div>
   <div class="meta">팀 Y-mas · AI반도체 전공 &nbsp;|&nbsp; 발표자: ________</div>
-  <div class="foot"><span>Y-mas</span><span>S1 / 9</span></div>
+  <div class="foot"><span>Y-mas</span><span>1 / 12 · 0:20</span></div>
 </section>
 
-<!-- ============ S2 문제 정의 ============ -->
 <section class="slide">
-  <div class="kicker"><span class="dot"></span><span class="tag">문제 정의</span>
-    <span class="judge">의료 관련성 · 실용성</span></div>
-  <h2>병원 낙상 — 가장 흔하고, 가장 치명적인 사고</h2>
+  <div class="kicker"><span class="dot"></span><span class="tag">문제 정의</span><span class="judge">의료 관련성 · 실용성</span></div>
+  <h2>병원 낙상은 <span class="u">예방 가능한 위해</span>다</h2>
+  <div class="statrow">
+    <div class="stat"><div class="num">70만–100만</div><div class="lbl">미국 병원 내 연간 낙상 환자 추정</div></div>
+    <div class="stat"><div class="num">3–5건</div><div class="lbl">병상일수 1,000일당 낙상 발생률</div></div>
+    <div class="stat"><div class="num">1/3+</div><div class="lbl">병원 낙상 중 손상으로 이어지는 비율</div></div>
+  </div>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card warn"><h3>기존 감시의 공백</h3><p>야간·무인 시간대, 섬망·수술 후·고령 환자에게 위험이 집중된다. 사고 후 발견하면 간호사의 개입 시간이 사라진다.</p></div>
+    <div class="card"><h3>필요한 해법</h3><p><b>비접촉·야간 동작·사생활 보호</b>를 만족하면서, 사고가 일어난 뒤가 아니라 <b>위험 행동 단계</b>에서 알려야 한다.</p></div>
+  </div>
+  <div class="source">출처: <a href="https://psnet.ahrq.gov/primer/falls">AHRQ PSNet, Falls (2024 검토)</a></div>
+  <div class="foot"><span>Y-mas</span><span>2 / 12 · 0:45</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker"><span class="dot"></span><span class="tag">현재 시장과 기술</span><span class="judge">실용성 · 차별성</span></div>
+  <h2>해법은 이미 있다 — 그러나 <span class="u">빈틈도 분명하다</span></h2>
+  <table>
+    <tr><th>유형 / 사례</th><th>장점</th><th>공개된 수치</th><th>남는 빈틈</th></tr>
+    <tr><td><strong>압력·베드이탈 센서</strong></td><td>저비용, 침대에 직접 설치</td><td>초기 연구: 민감도 96.0%, 특이도 ≥95.5%</td><td>자세·낙상 동작을 직접 구분하기 어려움</td></tr>
+    <tr><td><strong>Vayyar Care</strong> (4D 레이더)</td><td>카메라 없음, 암실·수증기 동작</td><td>센서 1대 최대 16m²</td><td>제품 정확도·지연 공개 수치 제한</td></tr>
+    <tr><td><strong>Nobi</strong> (AI 스마트 조명)</td><td>낙상 감지·호출·조명을 통합</td><td>79개 시설 평가: 낙상 −32%, 대응 11→2.99분</td><td>상용 완성도는 높지만 영상 기반·시설 중심</td></tr>
+  </table>
+  <div class="callout"><b>Y-mas의 문제 정의:</b> 침대 하중의 물리 신호와 IR 자세 AI를 결합해, 한 센서가 가진 빈틈을 다른 센서로 보완한다.</div>
+  <div class="source">출처: <a href="https://pubmed.ncbi.nlm.nih.gov/20083427/">Side-rail sensor 연구</a> · <a href="https://vayyar.com/care-pages/how/">Vayyar 공식</a> · <a href="https://www.lancaster.ac.uk/news/-lancashire-and-south-cumbria-care-home-falls-cut-by-a-third-with-use-of-smart-lights">Lancaster University의 Nobi 독립 평가</a></div>
+  <div class="foot"><span>Y-mas</span><span>3 / 12 · 0:55</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker"><span class="dot"></span><span class="tag">해결 구조</span><span class="judge">아이디어</span></div>
+  <h2>저비용 감시 + 정밀 AI의 <span class="u">2-Tier 구조</span></h2>
+  <div class="tiers">
+    <div class="tier"><span class="n">TIER 1</span><h3>물리 신호 상시 감시</h3><p>로드셀 4개 → HX711 → ESP32, 80Hz<br><b>체중·무게중심·변화율·TTE</b> 계산</p></div>
+    <div class="arr2">→</div>
+    <div class="tier"><span class="n">TIER 2</span><h3>IR·Depth 정밀 판정</h3><p>Femto W → YOLO11n-pose → 3D skeleton → ST-GCN<br><b>Normal / Risk / Fall</b></p></div>
+    <div class="arr2">→</div>
+    <div class="tier"><span class="n">TIER 3</span><h3>간호 스테이션</h3><p>Fall event 비동기 전송<br>Dashboard·WebSocket·확인(ACK)</p></div>
+  </div>
+  <div class="states"><div class="chip ok">NORMAL<small>안정</small></div><div class="chip risk">RISK<small>사전 개입 구간</small></div><div class="chip fall">FALL<small>즉시 알림</small></div></div>
+  <div class="callout"><b>설계 의도:</b> Tier 1이 위험 후보를 빠르게 포착하고, Tier 2가 자세·움직임으로 재확인한다. IR을 사용해 소등 환경에서 얼굴 RGB 영상을 피한다.</div>
+  <div class="foot"><span>Y-mas</span><span>4 / 12 · 0:55</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker"><span class="dot"></span><span class="tag">사용 데이터</span><span class="judge">완성도</span></div>
+  <h2>데이터는 <span class="u">센서 일관성</span>과 피험자 분리를 우선했다</h2>
   <div class="grid2">
     <div>
-      <ul>
-        <li>고령·섬망·수술 후 환자에게 집중 — <b>골절·두부외상·사망위험</b></li>
-        <li><b>야간·무인 시간대</b>에 집중 발생 → 상시 감시 공백</li>
-      </ul>
-      <div class="note">※ 발표 전 공신력 있는 낙상 발생률·비용 통계 1~2개 삽입 (의료 관련성 근거)</div>
+      <table>
+        <tr><th>데이터셋</th><th>클립</th><th>Normal</th><th>Risk</th><th>Fall</th></tr>
+        <tr><td><strong>NTU RGB+D 120</strong></td><td>27,679</td><td>20,114</td><td>6,618</td><td>947</td></tr>
+        <tr><td><strong>ETRI-Activity3D</strong></td><td>7,002</td><td>5,168</td><td>0</td><td>1,834</td></tr>
+        <tr><td><strong>합계</strong></td><td><strong>34,681</strong></td><td>25,282</td><td>6,618</td><td>2,781</td></tr>
+      </table>
+      <div class="statrow" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat"><div class="num" style="font-size:23px">18,771</div><div class="lbl">Train</div></div>
+        <div class="stat"><div class="num" style="font-size:23px">9,803</div><div class="lbl">Validation</div></div>
+        <div class="stat"><div class="num" style="font-size:23px">6,107</div><div class="lbl">Holdout</div></div>
+      </div>
     </div>
-    <div class="card">
-      <h3>기존 대응의 한계</h3>
-      <p><b>CCTV/영상</b> → 사생활 침해 + 소등 시 무력<br><br>
-         <b>매트센서·웨어러블</b> → 이미 떨어진 "후"에만 경보, 환자가 제거 가능<br><br>
-         <b>RGB 카메라</b> → 야간 소등 병실에서 검출률 0</p>
-    </div>
-  </div>
-  <p class="lead" style="margin-top:22px;">→ <b>사생활을 지키며, 소등된 야간에도, 떨어지기 전에</b> 작동하는 시스템이 필요하다.</p>
-  <div class="foot"><span>Y-mas</span><span>S2 / 9</span></div>
-</section>
-
-<!-- ============ S3 2-Tier 아키텍처 ============ -->
-<section class="slide">
-  <div class="kicker"><span class="dot"></span><span class="tag">해결 접근 — 핵심 아이디어</span>
-    <span class="judge">아이디어</span></div>
-  <h2>2-Tier <span class="u">하이브리드</span> 아키텍처</h2>
-  <div class="tiers">
-    <div class="tier"><span class="n">TIER 1</span><h4>상시 감시</h4>
-      <p>로드셀 4 → HX711 → ESP32<br><b>80Hz</b>, 저전력·저비용<br>무게중심(COG) 편향 감지</p></div>
-    <div class="arrow">→</div>
-    <div class="tier"><span class="n">TIER 2</span><h4>정밀 판정</h4>
-      <p>ToF 카메라(IR) → YOLO11n-pose<br>→ ST-GCN 낙상 판정<br>평소 <b>대기(sleep)</b>, 트리거 시 기상</p></div>
-    <div class="arrow">→</div>
-    <div class="tier"><span class="n">TIER 3</span><h4>간호사 알림</h4>
-      <p>간호 스테이션 대시보드<br>낙상 확정 시 실시간 통보<br>(연동 완료)</p></div>
-  </div>
-  <ul style="margin-top:22px;">
-    <li>비싼 비전 AI를 24시간 돌리지 않는다 — 저렴한 로드셀이 이상 징후를 잡는 <b>그 순간에만</b> 깨운다 (UDP 트리거)</li>
-    <li>주 입력은 RGB가 아닌 <b>IR(적외선)</b> → 얼굴 미식별로 사생활 보호 + 소등 병실에서도 동작</li>
-  </ul>
-  <div class="foot"><span>Y-mas</span><span>S3 / 9</span></div>
-</section>
-
-<!-- ============ S4 예측 차별화 ============ -->
-<section class="slide">
-  <div class="kicker"><span class="dot"></span><span class="tag">차별화</span>
-    <span class="judge">아이디어 · 의료 관련성</span></div>
-  <h2>"감지"가 아닌 <span class="u">"예측"</span></h2>
-  <p class="lead">대부분의 낙상 시스템은 <b>떨어진 뒤</b>를 감지한다. Y-mas는 <b>떨어지기 전 위험</b>을 예측한다.</p>
-  <div class="states">
-    <div class="chip c-ok">NORMAL<small>정상 상태</small></div>
-    <div class="chip c-risk">RISK<small>위험 전조 — 미리 경고</small></div>
-    <div class="chip c-fall">FALL<small>낙상 확정 — 즉시 알림</small></div>
-  </div>
-  <ul style="margin-top:26px;">
-    <li><b>Risk</b> 단계에서 미리 경고 → 간호사가 사고 <b>발생 전</b> 개입 가능</li>
-    <li>Tier 1 예측 경로 <b>PREDICTIVE_EDGE_RATE</b> — 가장자리 이탈 <b>속도</b>로 임계 도달 시각(TTE)을 추정해 선제 트리거</li>
-  </ul>
-  <div class="foot"><span>Y-mas</span><span>S4 / 9</span></div>
-</section>
-
-<!-- ============ S5 하드웨어 ============ -->
-<section class="slide">
-  <div class="kicker"><span class="dot"></span><span class="tag">구현 ① 하드웨어 실물</span>
-    <span class="judge">구현성 · 실용성</span></div>
-  <h2>말이 아니라 — 실제로 <span class="u">만들었다</span></h2>
-  <div class="imgwrap">
-    <img src="../../hardware/docs/mcu_assembly.png" alt="MCU 박스 조립 가이드">
-    <div style="flex:1;">
-      <ul class="tight">
-        <li>알루미늄 레일 플랫폼(30×60 프로파일) + <b>로드셀 4채널</b> + HX711 + ESP32</li>
-        <li>3D 프린트 인클로저(MCU·HX711 박스), 레일 어댑터, 바퀴 크래들/고임목</li>
-        <li>엣지: <b>Jetson AGX Orin</b> + Orbbec Femto W(ToF)</li>
-        <li><b>저비용 후설치</b> — 기존 침대에 레일 플랫폼을 까는 방식, 도입 장벽 낮음</li>
-      </ul>
+    <div>
+      <div class="card good"><h3>왜 이 두 데이터인가?</h3><p>둘 다 Kinect V2 계열 3D skeleton이다. 샘플 무작위가 아닌 <b>피험자 단위 분리</b>로 보지 않은 사람에게 일반화하는지 평가했다.</p></div>
+      <div class="card warn" style="margin-top:11px"><h3>데이터 한계도 공개한다</h3><p>동적 낙상은 NTU A043 947클립뿐이며, ETRI Fall은 정적 자세가 중심이다. Risk는 NTU에만 있다. 실제 Femto W 병실 데이터 파인튜닝은 다음 단계다.</p></div>
     </div>
   </div>
-  <div class="foot"><span>Y-mas</span><span>S5 / 9</span></div>
+  <div class="source">내부 근거: <code>docs/handover.md</code> · 총 34,681은 전체 캐시이며 실제 Train은 18,771</div>
+  <div class="foot"><span>Y-mas</span><span>5 / 12 · 0:45</span></div>
 </section>
 
-<!-- ============ S6 시연 영상 (플레이스홀더) ============ -->
 <section class="slide">
-  <div class="kicker"><span class="dot"></span><span class="tag">구현 ② 실시간 동작 시연</span>
-    <span class="judge">구현성 ★</span></div>
-  <h2>실제로 <span class="u">돌아간다</span> — 시연 영상</h2>
+  <div class="kicker"><span class="dot"></span><span class="tag">알고리즘 · 모델</span><span class="judge">아이디어 · 구현성</span></div>
+  <h2>뼈대의 <span class="u">공간 관계 + 시간 변화 + 물리량</span>을 함께 본다</h2>
+  <div class="flow">
+    <div class="step"><span class="n">1</span><h3>입력</h3><p>64 frame × 25 joint<br>3D skeleton</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">2</span><h3>3 Streams</h3><p>Joint · Bone · Velocity<br>9 channels</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">3</span><h3>ST-GCN</h3><p>Adaptive Graph<br>관절 연결 학습</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">4</span><h3>Multi-Scale TCN</h3><p>Temporal kernel<br>3 · 5 · 9</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">5</span><h3>Attention + Physics</h3><p>중요 시점 집중<br>속도·기울기 등 10종</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">6</span><h3>판정</h3><p>Normal · Risk · Fall<br>Aux Fall head</p></div>
+  </div>
+  <div class="grid3" style="margin-top:15px">
+    <div class="card"><h3>경량 모델</h3><p><b>약 1.48M trainable parameters</b><br>엣지 배포에 맞춘 규모</p></div>
+    <div class="card"><h3>불균형 대응</h3><p>Class weight + Focal Loss<br>Mixup · 관절 dropout</p></div>
+    <div class="card"><h3>안정적 학습</h3><p>EMA + SWA, AdamW<br>도메인 균형 체크포인트 선택</p></div>
+  </div>
+  <div class="source">내부 근거: <code>ymas/model.py</code> · <code>ymas/train.py</code> · <code>configs/v21_model_dropout.yaml</code></div>
+  <div class="foot"><span>Y-mas</span><span>6 / 12 · 0:55</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker"><span class="dot"></span><span class="tag">개발 워크플로우</span><span class="judge">완성도 · 구현성</span></div>
+  <h2>학습 수치가 <span class="u">엣지 실행물</span>이 되기까지</h2>
+  <div class="flow">
+    <div class="step"><span class="n">1</span><h3>데이터 캐시</h3><p>NTU + ETRI<br>동일 3D 포맷</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">2</span><h3>전처리</h3><p>정규화 · Physics<br>Joint/Bone/Velocity</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">3</span><h3>피험자 분할</h3><p>Train / Val / Holdout<br>정보 누수 방지</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">4</span><h3>학습·선택</h3><p>EMA/SWA<br>도메인 균형 점수</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">5</span><h3>임계값</h3><p>Val precision ≥.95<br>안에서 recall 최대</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">6</span><h3>배포</h3><p>ONNX opset 18<br>TensorRT FP16</p></div>
+  </div>
+  <div class="callout warn"><b>핵심 불변식:</b> 학습과 추론의 <code>normalize_seq</code>, <code>physics_features</code>, <code>to_streams</code>, 평균·표준편차를 동일하게 유지한다.</div>
+  <div class="grid2" style="margin-top:11px">
+    <div class="card good"><h3>검증 원칙</h3><p>임계값은 Validation에서 정하고 Holdout에는 한 번 적용한다. 오경보 0을 먼저 찾다가 recall이 붕괴했던 실패도 설계에 반영했다.</p></div>
+    <div class="card"><h3>버전 관리</h3><p>노트북이 아니라 저장소를 단일 진실 소스로 삼고, Colab은 학습 실행기, Jetson은 배포 실행기로 분리했다.</p></div>
+  </div>
+  <div class="foot"><span>Y-mas</span><span>7 / 12 · 0:45</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker"><span class="dot"></span><span class="tag">실시간 워크플로우</span><span class="judge">구현성</span></div>
+  <h2>센서 입력에서 간호사 알림까지</h2>
+  <div class="flow">
+    <div class="step"><span class="n">1</span><h3>IR + Depth</h3><p>C++ SDK bridge<br>Unix socket</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">2</span><h3>Pose</h3><p>YOLO11n-pose<br>COCO 17 joints</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">3</span><h3>3D Lift</h3><p>Depth 결합<br>NTU 25 joints</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">4</span><h3>ST-GCN</h3><p>최근 3초 → 64 frames<br>3-class probability</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">5</span><h3>복합 판정</h3><p>AI + zone 이탈<br>+ tilt ≥45°</p></div><div class="arr">›</div>
+    <div class="step"><span class="n">6</span><h3>Tier 3</h3><p>비동기 POST<br>Dashboard + ACK</p></div>
+  </div>
+  <div class="grid3" style="margin-top:15px">
+    <div class="card"><h3>야간</h3><p>IR이 주 입력이므로 소등 상태에서도 포즈를 얻는다.</p></div>
+    <div class="card"><h3>오류 격리</h3><p>Tier3가 느리거나 중단돼도 추론 루프는 계속된다.</p></div>
+    <div class="card"><h3>판정 안전장치</h3><p>모델 확률 하나가 아니라 구역과 몸통 기울기를 결합한다.</p></div>
+  </div>
+  <div class="callout red"><b>현재 경계:</b> Tier2 실시간·Tier3 웹 프로토타입은 구현됐다. Tier1 실물 트리거→v21→Tier3 전체 E2E와 v21 기본 배포 전환은 다음 통합 단계다.</div>
+  <div class="foot"><span>Y-mas</span><span>8 / 12 · 0:50</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker"><span class="dot"></span><span class="tag">정량 검증</span><span class="judge">완성도 · 구현성</span></div>
+  <h2>우리가 <span class="u">직접 비교할 수 있는</span> 개선 수치</h2>
+  <div class="metrics">
+    <div class="metric"><div class="v">100%</div><div class="l">NTU A043 동적 낙상<br>Holdout 84/84 검출</div></div>
+    <div class="metric"><div class="v">+2.38<small>pp</small></div><div class="l">v17→v21 동일 조건<br>recall 97.62→100%</div></div>
+    <div class="metric"><div class="v">−11.4%</div><div class="l">v17→v21 동일 Holdout<br>FP 79→70 clips</div></div>
+    <div class="metric"><div class="v">96.3%</div><div class="l">v21 Validation<br>precision 기록</div></div>
+  </div>
+  <div class="grid2" style="margin-top:15px">
+    <div class="card good"><h3>선택한 trade-off</h3><p>v18 대비 v21은 낙상 2개를 더 잡는 대신 FP가 67→70으로 3개 늘었다. 의료 위험도를 고려해 <b>FN 감소</b>를 선택했다.</p></div>
+    <div class="card"><h3>엣지 성능</h3><p>모델 단독 TensorRT FP16 문서 기록은 <b>약 2ms</b>. 모델 크기는 약 1.48M parameters로 실시간 배포 여유를 확보했다.</p></div>
+  </div>
+  <div class="callout red"><b>해석 범위:</b> 공개 Kinect 계열 클립 평가다. 실병실 정확도·시간당 오경보율·임상 성능을 뜻하지 않으며, 실환경 검증은 아직 남았다.</div>
+  <div class="source">내부 근거: <code>configs/v21_model_dropout.yaml</code> · <code>docs/handover.md</code></div>
+  <div class="foot"><span>Y-mas</span><span>9 / 12 · 0:55</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker"><span class="dot"></span><span class="tag">경쟁력 비교</span><span class="judge">차별성 · 실용성</span></div>
+  <h2>“더 좋다”보다 정확한 답 — <span class="u">어디가 다른가</span></h2>
+  <table class="smalltable">
+    <tr><th>항목</th><th>베드이탈 센서</th><th>Vayyar</th><th>Nobi</th><th>Y-mas</th></tr>
+    <tr><td><b>주 센서</b></td><td>압력/접촉</td><td>4D mmWave</td><td>영상 센서 내장 조명</td><td><strong>로드셀 + IR/Depth</strong></td></tr>
+    <tr><td><b>판정 시점</b></td><td>이탈 감지</td><td>주로 낙상 감지</td><td>예방 행동 + 낙상 감지</td><td><strong>Normal/Risk/Fall 3단계</strong></td></tr>
+    <tr><td><b>사생활/야간</b></td><td>강함 / 가능</td><td>강함 / 가능</td><td>개인정보 설정 필요 / 가능</td><td><strong>RGB 비저장, IR skeleton / 가능</strong></td></tr>
+    <tr><td><b>공개 수치</b></td><td>연구 민감도 96.0%</td><td>커버리지 최대 16m²</td><td>현장 낙상 −32%</td><td><strong>Holdout recall 100%, model ≈2ms</strong></td></tr>
+    <tr><td><b>근거 성숙도</b></td><td>임상 연구 있음</td><td>상용 배포</td><td>79개 시설 독립 평가</td><td><strong>공개데이터·프로토타입 단계</strong></td></tr>
+  </table>
+  <div class="callout warn"><b>직접 우월성 비교는 불가:</b> 데이터셋, 지표, 사용 환경이 다르다. 따라서 100% 대 96%를 “4% 더 좋다”고 주장하지 않는다. Y-mas의 현재 수치 우위는 <b>같은 Holdout의 v17→v21 개선(+2.38pp, FP −11.4%)</b>에서만 주장한다.</div>
+  <div class="callout"><b>현재의 차별점:</b> 저가 하중 센서의 pre-trigger, 자세 AI의 정밀 판정, 물리 규칙의 안전장치를 하나의 병상 워크플로우로 묶은 구조다.</div>
+  <div class="source">외부 출처는 S3와 동일. 제품·연구 수치는 각기 다른 조건의 참고값.</div>
+  <div class="foot"><span>Y-mas</span><span>10 / 12 · 1:05</span></div>
+</section>
+
+<section class="slide">
+  <div class="kicker"><span class="dot"></span><span class="tag">동작 시연</span><span class="judge">구현성 ★</span></div>
+  <h2>실제로 돌아가는 <span class="u">실행 화면</span></h2>
   <div class="videobox">
     <div class="play"></div>
     <div class="t">［ 시연 영상 삽입 자리 ］</div>
-    <div class="s">실제 <b>ymas_realtime_ir.py</b> 실행 화면 녹화 (약 60–75초)<br>
-      안정(Normal) → Tier1 트리거(166ms) → 위험(Risk) → 낙상(Fall) 흐름<br>
-      <span style="color:var(--accent)">※ 영상 추후 삽입. 발표 시 이 자리에서 재생.</span></div>
+    <div class="s">추후 제공되는 실제 실행 영상을 이 자리에 삽입<br>권장 길이 60–75초 · Normal → Risk → Fall → Tier3 알림</div>
   </div>
-  <div class="note">내레이션 큐: ① Normal 초록 → ② 터미널 "Tier1 인터럽트 166ms" → ③ Risk 노랑(예측) → ④ Fall 빨강 + 스켈레톤 + Tier3 알림. &nbsp; "이 엔진은 지금 이 노트북에서도 구동됩니다."</div>
-  <div class="foot"><span>Y-mas</span><span>S6 / 9</span></div>
+  <div class="callout">내레이션: IR skeleton과 확률 변화 → Risk 사전 경고 → zone 이탈 + tilt 복합 판정 → Fall event 전송. 현장 안전상 낙상 연기는 영상으로 대체하며 엔진은 Jetson에서 실행.</div>
+  <div class="foot"><span>Y-mas</span><span>11 / 12 · 1:15</span></div>
 </section>
 
-<!-- ============ S7 정량 성능 ============ -->
-<section class="slide">
-  <div class="kicker"><span class="dot"></span><span class="tag">구현 ③ 정량 성능</span>
-    <span class="judge">완성도 · 구현성</span></div>
-  <h2>숫자로 증명하는 완성도</h2>
-  <div class="metrics">
-    <div class="metric"><div class="v">1.000</div><div class="l">동적 낙상 recall<br>(미답 피험자 Holdout, 84/84)</div></div>
-    <div class="metric"><div class="v">≈2<small>ms</small></div><div class="l">추론 지연<br>(TensorRT FP16, ≈478 qps)</div></div>
-    <div class="metric"><div class="v">166<small>ms</small></div><div class="l">Tier1 반응 시간<br>(낙하 개시 → 경보)</div></div>
-    <div class="metric"><div class="v">~1.5<small>M</small></div><div class="l">모델 파라미터<br>(엣지 경량)</div></div>
-  </div>
-  <ul style="margin-top:26px;">
-    <li>학습 데이터: <b>NTU RGB+D 120 + ETRI-Activity3D</b> (Kinect V2 계열, 34,681 샘플)</li>
-    <li>설계 원칙: <b>놓친 낙상(FN)이 오경보(FP)보다 치명적</b> → precision≥0.95 게이트 안에서 recall 최우선</li>
-  </ul>
-  <div class="foot"><span>Y-mas</span><span>S7 / 9</span></div>
-</section>
-
-<!-- ============ S8 확장성 ============ -->
-<section class="slide">
-  <div class="kicker"><span class="dot"></span><span class="tag">실용성 · 확장성</span>
-    <span class="judge">실용성 · 완성도</span></div>
-  <h2>낙상 감지를 넘어 — <span class="u">풀 베드 모니터링</span></h2>
-  <div class="grid2">
-    <div class="card">
-      <h3>지금 되는 것 (구현 완료)</h3>
-      <p>✓ 2-Tier 아키텍처 · 실시간 추론<br>
-         ✓ Tier1 ↔ Tier2 연동 (166ms)<br>
-         ✓ Tier3 알림 연동<br>
-         ✓ 하드웨어 제작 · 정량 성능 검증</p>
-    </div>
-    <div class="card">
-      <h3>다음 단계 (확장)</h3>
-      <p>→ 같은 센서 위에 <b>욕창 예방 자세 분류</b> 등 모니터링 추가<br>
-         → 실환경 데이터 수집 → 파인튜닝으로 현장 정확도↑<br>
-         → Tier3 간호사 앱 고도화</p>
-    </div>
-  </div>
-  <p class="lead" style="margin-top:24px;">같은 센서 인프라 위에 임상 모니터링을 얹어 <b>침대 위 환자 상태를 24시간 지키는 플랫폼</b>으로.</p>
-  <div class="foot"><span>Y-mas</span><span>S8 / 9</span></div>
-</section>
-
-<!-- ============ S9 마무리 ============ -->
 <section class="slide closing">
-  <div class="kicker"><span class="dot" style="background:#6fd3c8"></span><span class="tag" style="color:#6fd3c8">마무리</span></div>
-  <h2>Y-mas — <span class="u">떨어지기 전에</span> 지킨다</h2>
-  <ul style="margin-top:10px;">
-    <li><b>저비용 상시감시</b>(로드셀) + <b>고연산 정밀판정</b>(비전 AI)의 2-Tier 하이브리드</li>
-    <li>사생활 보호 IR · 소등 야간 동작 · <b>pre-fall 예측</b></li>
-    <li>미답 피험자 동적 낙상 <b>recall 1.000</b>, 엣지 추론 <b>2ms</b> — 검증된 완성도</li>
-  </ul>
-  <p class="lead" style="margin-top:36px; color:#cfe3fa;">감사합니다. &nbsp; <span style="color:#8fb4dd; font-size:17px;">질문을 기다리겠습니다.</span></p>
-  <div class="foot"><span>Y-mas</span><span>S9 / 9</span></div>
+  <div class="kicker"><span class="dot" style="background:#6de0cf"></span><span class="tag" style="color:#6de0cf">차별점과 발전 가능성</span></div>
+  <h2>센서 하나가 아니라 <span class="u">임상 워크플로우</span>를 만든다</h2>
+  <div class="grid3" style="margin-top:12px">
+    <div class="card dark"><h3>NOW · 프로토타입</h3><p>데이터·모델·ONNX 배포<br>IR/Depth 실시간 추론<br>Tier3 Dashboard·알림</p></div>
+    <div class="card dark"><h3>NEXT · 현장화</h3><p>Tier1 실물 E2E 통합<br>Femto W 실데이터 파인튜닝<br>시간당 오경보·지연 검증</p></div>
+    <div class="card dark"><h3>EXPAND · 풀 베드</h3><p>욕창 예방 자세 분류<br>이상 호흡·장기 부동 감지<br>다병상 운영·EMR 연계</p></div>
+  </div>
+  <p class="lead" style="margin-top:25px"><b style="color:#fff">Y-mas:</b> 떨어진 뒤 알리는 장치에서, 위험 단계에 개입하고 병상 상태를 함께 관리하는 플랫폼으로.</p>
+  <p style="margin-top:24px;color:#87a8c9">감사합니다. 질문을 기다리겠습니다.</p>
+  <div class="foot"><span>Y-mas</span><span>12 / 12 · 0:35 · 총 10:00</span></div>
 </section>
 
 </div>
 <div id="bar"></div>
-
 <script>
-(function(){
-  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
-  var i = 0;
-  function show(n){
-    i = Math.max(0, Math.min(slides.length-1, n));
-    slides.forEach(function(s,k){ s.classList.toggle('active', k===i); });
-    document.getElementById('bar').style.width = ((i+1)/slides.length*100)+'%';
-  }
-  function next(){ show(i+1); } function prev(){ show(i-1); }
-  document.addEventListener('keydown', function(e){
-    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){ e.preventDefault(); next(); }
-    else if(e.key==='ArrowLeft'||e.key==='PageUp'){ e.preventDefault(); prev(); }
-    else if(e.key==='f'||e.key==='F'){ if(!document.fullscreenElement)document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
-    else if(e.key==='p'||e.key==='P'){ window.print(); }
-    else if(e.key==='Home'){ show(0); } else if(e.key==='End'){ show(slides.length-1); }
-  });
-  document.getElementById('deck').addEventListener('click', function(e){
-    if(e.clientX > window.innerWidth*0.5) next(); else prev();
-  });
-  show(0);
-})();
+(function(){var s=[].slice.call(document.querySelectorAll('.slide')),i=0;function show(n){i=Math.max(0,Math.min(s.length-1,n));s.forEach(function(x,k){x.classList.toggle('active',k===i)});document.getElementById('bar').style.width=((i+1)/s.length*100)+'%'}function next(){show(i+1)}function prev(){show(i-1)}document.addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();next()}else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();prev()}else if(e.key==='f'||e.key==='F'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen()}else if(e.key==='p'||e.key==='P'){window.print()}else if(e.key==='Home')show(0);else if(e.key==='End')show(s.length-1)});document.getElementById('deck').addEventListener('click',function(e){if(e.target.tagName==='A')return;e.clientX>innerWidth*.5?next():prev()});show(0)})();
 </script>
 </body>
 </html>
